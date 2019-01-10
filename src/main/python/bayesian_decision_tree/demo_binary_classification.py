@@ -2,6 +2,7 @@ from binary_classification import Node
 from demo_helper import *
 
 
+# demo script for binary classification
 if __name__ == '__main__':
     proxies = {
         'http': 'SET_HTTP_PROXY',

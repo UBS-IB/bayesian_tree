@@ -3,6 +3,7 @@ from demo_helper import *
 from sklearn.metrics import mean_squared_error
 
 
+# demo script for binary classification and regression
 if __name__ == '__main__':
     proxies = {
         'http': 'SET_HTTP_PROXY',
