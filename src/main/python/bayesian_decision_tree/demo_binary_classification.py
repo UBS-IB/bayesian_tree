@@ -1,5 +1,6 @@
-from binary_classification import Node
+from bayesian_decision_tree import *
 from demo_helper import *
+from sklearn.metrics import mean_squared_error
 
 
 # demo script for binary classification
@@ -12,11 +13,14 @@ if __name__ == '__main__':
     color0 = 'b'
     color1 = 'r'
 
-    # model parameters
+    # binary classification: Beta prior
+    prior = (1, 1)
+
+    # Bayesian tree parameters
     partition_prior = 0.9
     delta = 0
-    prior = (1, 1)  # Beta prior
-    root = Node('root', partition_prior, prior, prior, 0)
+
+    root = BinaryClassificationNode('root', partition_prior, prior, prior, 0)
 
     # training/test data
     train, test = load_ripley(proxies)
