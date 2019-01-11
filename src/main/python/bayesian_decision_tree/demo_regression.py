@@ -6,8 +6,8 @@ from sklearn.metrics import mean_squared_error
 # demo script for regression
 if __name__ == '__main__':
     proxies = {
-        'http': 'http://FR35023:Ats43pux^@inet-proxy-a.appl.swissbank.com:8080',
-        'https': 'https://FR35023:Ats43pux^@inet-proxy-a.appl.swissbank.com:8080'
+        'http': 'SET_HTTP_PROXY',
+        'https': 'SET_HTTPS_PROXY'
     }
 
     # regression: Normal-Gamma prior, see https://en.wikipedia.org/wiki/Conjugate_prior#Continuous_distributions

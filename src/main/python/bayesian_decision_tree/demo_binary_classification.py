@@ -5,8 +5,8 @@ from demo_helper import *
 # demo script for binary classification
 if __name__ == '__main__':
     proxies = {
-        'http': 'http://FR35023:Ats43pux^@inet-proxy-a.appl.swissbank.com:8080',
-        'https': 'https://FR35023:Ats43pux^@inet-proxy-a.appl.swissbank.com:8080'
+        'http': 'SET_HTTP_PROXY',
+        'https': 'SET_HTTPS_PROXY'
     }
 
     # binary classification: Beta prior
