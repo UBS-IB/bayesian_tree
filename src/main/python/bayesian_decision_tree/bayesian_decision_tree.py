@@ -99,7 +99,7 @@ class Node(ABC):
             return predictions
         else:
             # no children -> predict mean
-            return self.predict_leaf() * np.ones(len(X))
+            return self.predict_leaf()
 
     @abstractmethod
     def check_target(self, y):
