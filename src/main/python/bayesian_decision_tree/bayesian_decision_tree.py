@@ -114,7 +114,7 @@ class Node(ABC):
         pass
 
     @abstractmethod
-    def compute_posterior(self, y, delta):
+    def compute_posterior(self, y, delta=1):
         pass
 
     @abstractmethod
@@ -149,8 +149,10 @@ class BinaryClassificationNode(Node):
 
     def __init__(self, name, partition_prior, prior, posterior=None, level=0):
         super().__init__(name, partition_prior, prior, posterior, level, BinaryClassificationNode)
-        assert len(self.prior) == 2, 'Expected a Beta(alpha, beta) prior, i.e., a sequence with two entries, but got {}'.format(prior)
-        assert len(self.posterior) == 2, 'Expected a Beta(alpha, beta) posterior, i.e., a sequence with two entries, but got {}'.format(posterior)
+        assert len(self.prior) == 2,\
+            'Expected a Beta(alpha, beta) prior, i.e., a sequence with two entries, but got {}'.format(prior)
+        assert len(self.posterior) == 2,\
+            'Expected a Beta(alpha, beta) posterior, i.e., a sequence with two entries, but got {}'.format(posterior)
 
     def check_target(self, y):
         assert y.min() == 0 and y.max() == 1,\
@@ -189,6 +191,7 @@ class BinaryClassificationNode(Node):
         if delta == 0:
             return alpha, beta
 
+        # see https://en.wikipedia.org/wiki/Conjugate_prior#Discrete_distributions
         n = len(y)
         k = y.sum()
         alpha_post = alpha + delta*(n-k)
@@ -205,6 +208,9 @@ class BinaryClassificationNode(Node):
 
     def _compute_log_p_data(self, n, k, betaln_prior):
         alpha, beta = self.prior
+
+        # see https://www.cs.ubc.ca/~murphyk/Teaching/CS340-Fall06/reading/bernoulli.pdf, equation (42)
+        # which can be expressed as a fraction of beta functions
         return betaln(alpha+(n-k), beta+k) - betaln_prior
 
 
@@ -247,9 +253,9 @@ class MultiClassificationNode(Node):
         k2 = np.array(n_classes * [None])
         for i in range(n_classes):
             k1_plus_sum = (y == i).cumsum()
-            sum = k1_plus_sum[-1]
+            total = k1_plus_sum[-1]
             k1[i] = k1_plus_sum[split_indices-1]
-            k2[i] = sum - k1[i]
+            k2[i] = total - k1[i]
 
         betaln_prior = multivariate_betaln(alphas)
         log_p_prior = np.log(self.partition_prior**(1+self.level) / n_splits)
@@ -263,9 +269,10 @@ class MultiClassificationNode(Node):
         if delta == 0:
             return alphas
 
-        k = np.zeros(len(alphas))
-        for i in range(len(k)):
-            k[i] = (y == i).sum()
+        # see https://en.wikipedia.org/wiki/Conjugate_prior#Discrete_distributions
+        y_reshaped = np.broadcast_to(y, (len(alphas), len(y)))
+        classes = np.arange(len(alphas)).reshape(-1, 1)
+        k = np.sum(y_reshaped == classes, axis=1)
         alphas_post = alphas + delta*k
 
         return alphas_post
@@ -273,16 +280,16 @@ class MultiClassificationNode(Node):
     def compute_posterior_mean(self):
         alphas = self.posterior
         means = alphas / np.sum(alphas)
-        posterior_mean = 0
-        for i in range(len(means)):
-            posterior_mean += i * means[i]
-        return posterior_mean
+        return (np.arange(len(means)) * means).sum()
 
     def predict_leaf(self):
         return np.argmax(self.posterior)
 
     def _compute_log_p_data(self, k, betaln_prior):
         alphas = self.prior
+
+        # see https://www.cs.ubc.ca/~murphyk/Teaching/CS340-Fall06/reading/bernoulli.pdf, equation (42)
+        # which can be expressed as a fraction of beta functions
         return multivariate_betaln(alphas+k) - betaln_prior
 
 
@@ -354,11 +361,12 @@ class RegressionNode(Node):
     def _compute_posterior_internal(self, n, mean, y_minus_mean_sq_sum, delta=1):
         mu, kappa, alpha, beta = self.prior
 
+        # see https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf, equations (86) - (89)
         n_delta = n*delta
         kappa_post = kappa + n_delta
         mu_post = (kappa*mu + n_delta*mean) / kappa_post
         alpha_post = alpha + 0.5*n_delta
-        beta_post = beta + 0.5 * delta * y_minus_mean_sq_sum + kappa * n_delta * (mean - mu)**2 / (2 * (kappa + n))
+        beta_post = beta + 0.5*delta*y_minus_mean_sq_sum + 0.5*kappa*n_delta*(mean-mu)**2 / (kappa+n)
 
         return mu_post, kappa_post, alpha_post, beta_post
 
@@ -368,10 +376,11 @@ class RegressionNode(Node):
     def predict_leaf(self):
         return self.compute_posterior_mean()
 
-    def _compute_log_p_data(self, alpha1, beta1, kappa1, n1):
+    def _compute_log_p_data(self, alpha_new, beta_new, kappa_new, n_new):
         mu, kappa, alpha, beta = self.prior
 
-        return (gammaln(alpha1) - gammaln(alpha)
-                + alpha * np.log(beta) - alpha1 * np.log(beta1)
-                + 0.5 * np.log(kappa / kappa1)
-                - 0.5 * n1 * np.log(2 * np.pi))
+        # see https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf, equation (95)
+        return (gammaln(alpha_new) - gammaln(alpha)
+                + alpha*np.log(beta) - alpha_new*np.log(beta_new)
+                + 0.5*np.log(kappa/kappa_new)
+                - 0.5*n_new*np.log(2*np.pi))

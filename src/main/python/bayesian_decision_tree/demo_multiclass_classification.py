@@ -19,21 +19,22 @@ if __name__ == '__main__':
     root = MultiClassificationNode('root', partition_prior, prior)
 
     # training/test data: artificial 4-class data somewhat similar to the Ripley data
-    n = 1000
+    n_train = 500
+    n_test = 2000
     x1 = [1, 3, 2, 4]
     x2 = [1, 1, 3, 3]
-    sd = 0.5
-    train = np.zeros((n, 3))
-    test = np.zeros((n, 3))
+    sd = 0.7
+    train = np.zeros((n_train, 3))
+    test = np.zeros((n_test, 3))
     np.random.seed(666)
     for i in range(4):
-        train[i * n // 4:(i + 1) * n // 4, 0] = np.random.normal(x1[i], sd, n // 4)
-        train[i * n // 4:(i + 1) * n // 4, 1] = np.random.normal(x2[i], sd, n // 4)
-        train[i * n // 4:(i + 1) * n // 4, 2] = i
+        train[i * n_train // 4:(i + 1) * n_train // 4, 0] = np.random.normal(x1[i], sd, n_train // 4)
+        train[i * n_train // 4:(i + 1) * n_train // 4, 1] = np.random.normal(x2[i], sd, n_train // 4)
+        train[i * n_train // 4:(i + 1) * n_train // 4, 2] = i
 
-        test[i * n // 4:(i + 1) * n // 4, 0] = np.random.normal(x1[i], sd, n // 4)
-        test[i * n // 4:(i + 1) * n // 4, 1] = np.random.normal(x2[i], sd, n // 4)
-        test[i * n // 4:(i + 1) * n // 4, 2] = i
+        test[i * n_test // 4:(i + 1) * n_test // 4, 0] = np.random.normal(x1[i], sd, n_test // 4)
+        test[i * n_test // 4:(i + 1) * n_test // 4, 1] = np.random.normal(x2[i], sd, n_test // 4)
+        test[i * n_test // 4:(i + 1) * n_test // 4, 2] = i
 
     # train
     X = train[:, :-1]

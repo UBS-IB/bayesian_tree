@@ -22,7 +22,9 @@ def load_haberman(proxies):
         data = np.vstack([np.fromstring(lines[i], sep=',') for i in range(len(lines)-1)])
         data[:, -1] -= 1
         return data
-    train = parse_haberman(requests.get('https://archive.ics.uci.edu/ml/machine-learning-databases/haberman/haberman.data', proxies=proxies).text)
+    train = parse_haberman(requests.get(
+        'https://archive.ics.uci.edu/ml/machine-learning-databases/haberman/haberman.data',
+        proxies=proxies).text)
     test = train
     return train, test
 
@@ -35,7 +37,9 @@ def load_seismic(proxies):
         text = text.replace('N', '0').replace('W', '1')
         lines = text.split('\n')[1:]
         return np.vstack([np.fromstring(lines[i], sep=',') for i in range(len(lines)-1)])
-    train = parse_seismic(requests.get('https://archive.ics.uci.edu/ml/machine-learning-databases/00266/seismic-bumps.arff', proxies=proxies).text)
+    train = parse_seismic(requests.get(
+        'https://archive.ics.uci.edu/ml/machine-learning-databases/00266/seismic-bumps.arff',
+        proxies=proxies).text)
     test = train
     return train, test
 
@@ -46,7 +50,9 @@ def load_gamma(proxies):
         text = text.replace('g', '0').replace('h', '1')
         lines = text.split('\n')
         return np.vstack([np.fromstring(lines[i], sep=',') for i in range(len(lines)-1)])
-    train = parse_gamma(requests.get('https://archive.ics.uci.edu/ml/machine-learning-databases/magic/magic04.data', proxies=proxies).text)
+    train = parse_gamma(requests.get(
+        'https://archive.ics.uci.edu/ml/machine-learning-databases/magic/magic04.data',
+        proxies=proxies).text)
     test = train
     return train, test
 
@@ -81,7 +87,12 @@ def plot_2d(root, train, info_train, test, info_test):
     def plot(data, info):
         for i in range(n_classes):
             class_i = data[:, -1] == i
-            plt.plot(data[np.where(class_i)[0], 0], data[np.where(class_i)[0], 1], 'o', ms=4, c=colormap(i/n_classes), label='Class {}'.format(i))
+            plt.plot(data[np.where(class_i)[0], 0],
+                     data[np.where(class_i)[0], 1],
+                     'o',
+                     ms=4,
+                     c=colormap(i/n_classes),
+                     label='Class {}'.format(i))
 
             bounds = ((data[:, 0].min(), data[:, 0].max()), (data[:, 1].min(), data[:, 1].max()))
             draw_node_2d(root, bounds, colormap, n_classes)
@@ -112,15 +123,18 @@ def draw_node_2d(node, bounds, colormap, n_classes):
         mean = node.compute_posterior_mean()
         plt.gca().add_patch(patches.Rectangle((x, y), w, h, color=colormap(mean/n_classes), alpha=0.1, linewidth=0))
 
+
 def compute_child_bounds_2d(bounds, parent, lower):
     b = bounds[parent.split_dimension]
     b = (b[0], min(b[1], parent.split_value)) if lower else (max(b[0], parent.split_value), b[1])
     return (b, bounds[1]) if parent.split_dimension == 0 else (bounds[0], b)
 
+
 def compute_child_bounds_1d(bounds, parent, lower):
     b = bounds
     b = (b[0], min(b[1], parent.split_value)) if lower else (max(b[0], parent.split_value), b[1])
     return b
+
 
 def draw_node_1d(node, bounds):
     if node.child1 is not None:
