@@ -6,11 +6,12 @@ from scipy.special import betaln, gammaln
 
 class Node(ABC):
     """A node class with either no children, in which case it's a leaf node, or exactly two children."""
+
     def __init__(self, name, partition_prior, prior, posterior, level, child_type):
         self.name = name
         self.partition_prior = partition_prior
-        self.prior = prior
-        self.posterior = posterior
+        self.prior = np.array(prior)
+        self.posterior = np.array(posterior) if posterior is not None else np.array(prior)
         self.level = level
         self.child_type = child_type
 
@@ -21,30 +22,31 @@ class Node(ABC):
         self.child1 = None
         self.child2 = None
 
-    def train(self, data, target, delta):
-        #print('Training level {} with {:10} data points'.format(self.level, len(target)))  # xx
-        """Trains this node with the given feature data matrix and the given target vector."""
-        n_dim = data.shape[1]
+    def fit(self, X, y, delta):
+        """Trains this node with the given feature data matrix X and the given target vector y."""
+        if self.level == 0:
+            self.check_target(y)
 
         # compute data likelihood of not splitting and remember it as the best option so far
-        log_p_data_post_best = self.compute_log_p_data_post_no_split(target)
+        log_p_data_post_best = self.compute_log_p_data_post_no_split(y)
 
         # compute data likelihoods of all possible splits along all data dimensions
-        best_split_index = -1    # index of best split
-        best_split_dimension = -1  # dimension of best split
+        n_dim = X.shape[1]
+        best_split_index = -1       # index of best split
+        best_split_dimension = -1   # dimension of best split
         for dim in range(n_dim):
-            data_dim = data[:, dim]
-            sort_indices = np.argsort(data_dim)
-            data_dim_sorted = data_dim[sort_indices]
-            split_indices = 1 + np.where(np.diff(data_dim_sorted) != 0)[0]  # we can only split between *different* data points
+            X_dim = X[:, dim]
+            sort_indices = np.argsort(X_dim)
+            X_dim_sorted = X_dim[sort_indices]
+            split_indices = 1 + np.where(np.diff(X_dim_sorted) != 0)[0]  # we can only split between *different* data points
             if len(split_indices) == 0:
                 # no split possible along this dimension
                 continue
 
-            target_sorted = target[sort_indices]
+            y_sorted = y[sort_indices]
 
             # compute data likelihoods of all possible splits along this dimension and find split with highest data likelihood
-            log_p_data_post_split = self.compute_log_p_data_post_split(split_indices, target_sorted)
+            log_p_data_post_split = self.compute_log_p_data_post_split(split_indices, y_sorted)
             i_max = log_p_data_post_split.argmax()
             if log_p_data_post_split[i_max] > log_p_data_post_best:
                 # remember new best split
@@ -55,64 +57,68 @@ class Node(ABC):
         # did we find a split that has a higher likelihood than the no-split likelihood?
         if best_split_index > 0:
             # split data and target to recursively train children
-            sort_indices = np.argsort(data[:, best_split_dimension])
-            data_sorted = data[sort_indices]
-            target_sorted = target[sort_indices]
-            data1 = data_sorted[:best_split_index]
-            data2 = data_sorted[best_split_index:]
-            target1 = target_sorted[:best_split_index]
-            target2 = target_sorted[best_split_index:]
+            sort_indices = np.argsort(X[:, best_split_dimension])
+            X_sorted = X[sort_indices]
+            y_sorted = y[sort_indices]
+            X1 = X_sorted[:best_split_index]
+            X2 = X_sorted[best_split_index:]
+            y1 = y_sorted[:best_split_index]
+            y2 = y_sorted[best_split_index:]
 
             # compute posteriors of children and priors for further splitting
-            posterior1 = self.compute_posterior(target1)
-            posterior2 = self.compute_posterior(target2)
-            prior_child1 = self.compute_posterior(target1, delta)
-            prior_child2 = self.compute_posterior(target1, delta)
+            posterior1 = self.compute_posterior(y1)
+            posterior2 = self.compute_posterior(y2)
+            prior_child1 = self.compute_posterior(y1, delta)
+            prior_child2 = self.compute_posterior(y1, delta)
 
             # store split info, create children and continue training them if there's data left to split
             self.split_dimension = best_split_dimension
             self.split_index = best_split_index
-            self.split_value = 0.5 * (data_sorted[best_split_index-1, best_split_dimension] + data_sorted[best_split_index, best_split_dimension])
+            self.split_value = 0.5 * (X_sorted[best_split_index-1, best_split_dimension] + X_sorted[best_split_index, best_split_dimension])
 
             self.child1 = self.child_type(self.name + '-child1', self.partition_prior, prior_child1, posterior1, self.level+1)
             self.child2 = self.child_type(self.name + '-child2', self.partition_prior, prior_child2, posterior2, self.level+1)
 
-            if len(data1) > 1:
-                self.child1.train(data1, target1, delta)
-            if len(data2) > 1:
-                self.child2.train(data2, target2, delta)
+            if len(X1) > 1:
+                self.child1.fit(X1, y1, delta)
+            if len(X2) > 1:
+                self.child2.fit(X2, y2, delta)
 
-    def predict(self, data_eval):
+    def predict(self, X):
         if self.child1 is not None:
             # query children and then re-assemble
-            indices1 = np.where(data_eval[:, self.split_dimension] < self.split_value)[0]
-            indices2 = np.where(data_eval[:, self.split_dimension] >= self.split_value)[0]
-            predictions1 = self.child1.predict(data_eval[indices1])
-            predictions2 = self.child2.predict(data_eval[indices2])
+            indices1 = np.where(X[:, self.split_dimension] < self.split_value)[0]
+            indices2 = np.where(X[:, self.split_dimension] >= self.split_value)[0]
+            predictions1 = self.child1.predict(X[indices1])
+            predictions2 = self.child2.predict(X[indices2])
 
-            predictions = np.zeros(len(data_eval))
+            predictions = np.zeros(len(X))
             predictions[indices1] = predictions1
             predictions[indices2] = predictions2
 
             return predictions
         else:
             # no children -> predict mean
-            return self.predict_leaf() * np.ones(len(data_eval))
+            return self.predict_leaf() * np.ones(len(X))
 
     @abstractmethod
-    def compute_log_p_data_post_no_split(self, target):
+    def check_target(self, y):
         pass
 
     @abstractmethod
-    def compute_log_p_data_post_split(self, split_indices, target_sorted):
+    def compute_log_p_data_post_no_split(self, y):
         pass
 
     @abstractmethod
-    def compute_posterior(self, target, delta):
+    def compute_log_p_data_post_split(self, split_indices, y):
         pass
 
     @abstractmethod
-    def compute_mean(self):
+    def compute_posterior(self, y, delta):
+        pass
+
+    @abstractmethod
+    def compute_posterior_mean(self):
         pass
 
     @abstractmethod
@@ -140,12 +146,19 @@ class Node(ABC):
 
 class BinaryClassificationNode(Node):
     """Concrete node implementation for binary classification using a Beta(alpha, beta) prior."""
-    def __init__(self, name, partition_prior, prior, posterior, level):
-        super().__init__(name, partition_prior, prior, posterior, level, BinaryClassificationNode)
 
-    def compute_log_p_data_post_no_split(self, target):
+    def __init__(self, name, partition_prior, prior, posterior=None, level=0):
+        super().__init__(name, partition_prior, prior, posterior, level, BinaryClassificationNode)
+        assert len(self.prior) == 2, 'Expected a Beta(alpha, beta) prior, i.e., a sequence with two entries, but got {}'.format(prior)
+        assert len(self.posterior) == 2, 'Expected a Beta(alpha, beta) posterior, i.e., a sequence with two entries, but got {}'.format(posterior)
+
+    def check_target(self, y):
+        assert y.min() == 0 and y.max() == 1,\
+            'Expected target values 0..1 but found {}..{}'.format(y.min(), y.max())
+
+    def compute_log_p_data_post_no_split(self, y):
         alpha, beta = self.prior
-        alpha_post, beta_post = self.compute_posterior(target)
+        alpha_post, beta_post = self.compute_posterior(y)
 
         betaln_prior = betaln(alpha, beta)
         log_p_prior = np.log(1-self.partition_prior**(1+self.level))
@@ -153,14 +166,14 @@ class BinaryClassificationNode(Node):
 
         return log_p_prior + log_p_data
 
-    def compute_log_p_data_post_split(self, split_indices, target_sorted):
-        n = len(target_sorted)
+    def compute_log_p_data_post_split(self, split_indices, y):
+        n = len(y)
         n_splits = len(split_indices)
 
         n1 = split_indices
         n2 = n - n1
-        k1 = target_sorted.cumsum()[split_indices-1]
-        k2 = target_sorted.sum() - k1
+        k1 = y.cumsum()[split_indices - 1]
+        k2 = y.sum() - k1
 
         alpha, beta = self.prior
 
@@ -171,28 +184,106 @@ class BinaryClassificationNode(Node):
 
         return log_p_prior + log_p_data1 + log_p_data2
 
-    def compute_posterior(self, target, delta=1):
+    def compute_posterior(self, y, delta=1):
         alpha, beta = self.prior
         if delta == 0:
             return alpha, beta
 
-        n = len(target)
-        k = target.sum()
-        alpha_post = alpha + delta*k
-        beta_post = beta + delta*(n-k)
+        n = len(y)
+        k = y.sum()
+        alpha_post = alpha + delta*(n-k)
+        beta_post = beta + delta*k
+
         return alpha_post, beta_post
 
-    def compute_mean(self):
-        # Beta prior: mean = alpha/(alpha+beta)
+    def compute_posterior_mean(self):
         alpha, beta = self.posterior
-        return alpha / (alpha + beta)
+        return beta/(alpha+beta)
 
     def predict_leaf(self):
-        return 0 if self.compute_mean() < 0.5 else 1
+        return np.argmax(self.posterior)
 
     def _compute_log_p_data(self, n, k, betaln_prior):
         alpha, beta = self.prior
-        return betaln(alpha+k, beta+(n-k)) - betaln_prior
+        return betaln(alpha+(n-k), beta+k) - betaln_prior
+
+
+def multivariate_betaln(alphas):
+    if len(alphas) == 2:
+        return betaln(alphas[0], alphas[1])
+    else:
+        # see https://en.wikipedia.org/wiki/Beta_function#Multivariate_beta_function
+        return np.sum([gammaln(alpha) for alpha in alphas], axis=0) - gammaln(alphas.sum())
+
+
+class MultiClassificationNode(Node):
+    """Concrete node implementation for multi-class classification using a Dirichlet prior."""
+
+    def __init__(self, name, partition_prior, prior, posterior=None, level=0):
+        super().__init__(name, partition_prior, prior, posterior, level, MultiClassificationNode)
+        assert len(self.prior) == len(self.posterior)
+
+    def check_target(self, y):
+        n_classes = len(self.prior)
+        assert y.min() == 0 and y.max() == n_classes - 1,\
+            'Expected target values 0..{} but found {}..{}'.format(n_classes - 1, y.min(), y.max())
+
+    def compute_log_p_data_post_no_split(self, y):
+        alphas = self.prior
+        alphas_post = self.compute_posterior(y)
+
+        betaln_prior = multivariate_betaln(alphas)
+        log_p_prior = np.log(1-self.partition_prior**(1+self.level))
+        log_p_data = multivariate_betaln(alphas_post) - betaln_prior
+
+        return log_p_prior + log_p_data
+
+    def compute_log_p_data_post_split(self, split_indices, y):
+        n_splits = len(split_indices)
+
+        alphas = self.prior
+        n_classes = len(alphas)
+        k1 = np.array(n_classes * [None])
+        k2 = np.array(n_classes * [None])
+        for i in range(n_classes):
+            k1_plus_sum = (y == i).cumsum()
+            sum = k1_plus_sum[-1]
+            k1[i] = k1_plus_sum[split_indices-1]
+            k2[i] = sum - k1[i]
+
+        betaln_prior = multivariate_betaln(alphas)
+        log_p_prior = np.log(self.partition_prior**(1+self.level) / n_splits)
+        log_p_data1 = self._compute_log_p_data(k1, betaln_prior)
+        log_p_data2 = self._compute_log_p_data(k2, betaln_prior)
+
+        return log_p_prior + log_p_data1 + log_p_data2
+
+    def compute_posterior(self, y, delta=1):
+        alphas = self.prior
+        if delta == 0:
+            return alphas
+
+        k = np.zeros(len(alphas))
+        for i in range(len(k)):
+            k[i] = (y == i).sum()
+        alphas_post = alphas + delta*k
+
+        return alphas_post
+
+    def compute_posterior_mean(self):
+        alphas = self.posterior
+        means = alphas / np.sum(alphas)
+        posterior_mean = 0
+        for i in range(len(means)):
+            posterior_mean += i * means[i]
+        return posterior_mean
+
+    def predict_leaf(self):
+        return np.argmax(self.posterior)
+
+    def _compute_log_p_data(self, k, betaln_prior):
+        alphas = self.prior
+        return multivariate_betaln(alphas+k) - betaln_prior
 
 
 class RegressionNode(Node):
@@ -200,52 +291,49 @@ class RegressionNode(Node):
     Concrete node implementation for regression using a Normal-Gamma(mu, kappa, alpha, beta) prior
     for unknown mean and unknown variance.
     """
-    def __init__(self, name, partition_prior, prior, posterior, level):
+
+    def __init__(self, name, partition_prior, prior, posterior=None, level=0):
         super().__init__(name, partition_prior, prior, posterior, level, RegressionNode)
 
-    def compute_log_p_data_post_no_split(self, target):
-        n = len(target)
-        mean = target.mean()
+    def check_target(self, y):
+        pass
 
-        target_minus_mean_sq_sum = ((target - mean)**2).sum()
-        mu_post, kappa_post, alpha_post, beta_post = self._compute_posterior_internal(n, mean, target_minus_mean_sq_sum)
+    def compute_log_p_data_post_no_split(self, y):
+        n = len(y)
+        mean = y.mean()
+
+        y_minus_mean_sq_sum = ((y - mean)**2).sum()
+        mu_post, kappa_post, alpha_post, beta_post = self._compute_posterior_internal(n, mean, y_minus_mean_sq_sum)
         log_p_prior = np.log(1 - self.partition_prior**(1 + self.level))
         log_p_data = self._compute_log_p_data(alpha_post, beta_post, kappa_post, n)
 
         return log_p_prior + log_p_data
 
-    def compute_log_p_data_post_split(self, split_indices, target_sorted):
-        n = len(target_sorted)
+    def compute_log_p_data_post_split(self, split_indices, y):
+        n = len(y)
         n_splits = len(split_indices)
 
-        n1_full = np.arange(1, n)
-        n2_full = n - n1_full
-        sum1_full = target_sorted.cumsum()[:-1]
-        mean1_full = sum1_full / n1_full
-        mean2_full = (target_sorted.sum() - sum1_full) / n2_full
+        n1 = np.arange(1, n)
+        n2 = n - n1
+        sum1 = y.cumsum()[:-1]
+        mean1 = sum1 / n1
+        mean2 = (y.sum() - sum1) / n2
+        y_minus_mean_sq_sum1 = ((y[:-1] - mean1)**2).cumsum()
+        y_minus_mean_sq_sum2 = ((y[1:] - mean2)[::-1]**2).cumsum()[::-1]
 
-        if len(split_indices) == len(target_sorted)-1:
-            # we evaluate splits between *all* data points -> no costly indexing with split_indices necessary
-            n1 = n1_full
-            n2 = n2_full
-            mean1 = mean1_full
-            mean2 = mean2_full
-
-            target_minus_mean_sq_sum1 = ((target_sorted[:-1] - mean1_full)**2).cumsum()
-            target_minus_mean_sq_sum2 = ((target_sorted[1:] - mean2_full)[::-1]**2).cumsum()[::-1]
-        else:
+        if len(split_indices) != len(y)-1:
+            # we are *not* splitting between all data points -> indexing necessary
             split_indices_minus_1 = split_indices - 1
 
-            n1 = n1_full[split_indices_minus_1]
-            n2 = n2_full[split_indices_minus_1]
-            mean1 = mean1_full[split_indices_minus_1]
-            mean2 = mean2_full[split_indices_minus_1]
+            n1 = n1[split_indices_minus_1]
+            n2 = n2[split_indices_minus_1]
+            mean1 = mean1[split_indices_minus_1]
+            mean2 = mean2[split_indices_minus_1]
+            y_minus_mean_sq_sum1 = y_minus_mean_sq_sum1[split_indices_minus_1]
+            y_minus_mean_sq_sum2 = y_minus_mean_sq_sum2[split_indices_minus_1]
 
-            target_minus_mean_sq_sum1 = ((target_sorted[:-1] - mean1_full)**2).cumsum()[split_indices_minus_1]
-            target_minus_mean_sq_sum2 = ((target_sorted[1:] - mean2_full)[::-1]**2).cumsum()[::-1][split_indices_minus_1]
-
-        mu1, kappa1, alpha1, beta1 = self._compute_posterior_internal(n1, mean1, target_minus_mean_sq_sum1)
-        mu2, kappa2, alpha2, beta2 = self._compute_posterior_internal(n2, mean2, target_minus_mean_sq_sum2)
+        mu1, kappa1, alpha1, beta1 = self._compute_posterior_internal(n1, mean1, y_minus_mean_sq_sum1)
+        mu2, kappa2, alpha2, beta2 = self._compute_posterior_internal(n2, mean2, y_minus_mean_sq_sum2)
 
         log_p_prior = np.log(self.partition_prior**(1+self.level) / n_splits)
         log_p_data1 = self._compute_log_p_data(alpha1, beta1, kappa1, n1)
@@ -253,32 +341,32 @@ class RegressionNode(Node):
 
         return log_p_prior + log_p_data1 + log_p_data2
 
-    def compute_posterior(self, target, delta=1):
+    def compute_posterior(self, y, delta=1):
         if delta == 0:
             return self.prior
 
-        n = len(target)
-        mean = target.mean()
-        target_minus_mean_sq_sum = ((target - mean)**2).sum()
+        n = len(y)
+        mean = y.mean()
+        y_minus_mean_sq_sum = ((y - mean)**2).sum()
 
-        return self._compute_posterior_internal(n, mean, target_minus_mean_sq_sum, delta)
+        return self._compute_posterior_internal(n, mean, y_minus_mean_sq_sum, delta)
 
-    def _compute_posterior_internal(self, n, mean, target_minus_mean_sq_sum, delta=1):
+    def _compute_posterior_internal(self, n, mean, y_minus_mean_sq_sum, delta=1):
         mu, kappa, alpha, beta = self.prior
 
         n_delta = n*delta
         kappa_post = kappa + n_delta
         mu_post = (kappa*mu + n_delta*mean) / kappa_post
         alpha_post = alpha + 0.5*n_delta
-        beta_post = beta + 0.5*delta*target_minus_mean_sq_sum + kappa*n_delta*(mean-mu)**2/(2*(kappa+n))
+        beta_post = beta + 0.5 * delta * y_minus_mean_sq_sum + kappa * n_delta * (mean - mu)**2 / (2 * (kappa + n))
 
         return mu_post, kappa_post, alpha_post, beta_post
 
-    def compute_mean(self):
+    def compute_posterior_mean(self):
         return self.posterior[0]  # mu is the posterior mean
 
     def predict_leaf(self):
-        return self.compute_mean()
+        return self.compute_posterior_mean()
 
     def _compute_log_p_data(self, alpha1, beta1, kappa1, n1):
         mu, kappa, alpha, beta = self.prior

@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import requests
 from matplotlib import patches
+from matplotlib.pyplot import cm
 
 
 def load_ripley(proxies):
@@ -53,7 +54,7 @@ def load_gamma(proxies):
 def plot_1d(root, train, info_train, test, info_test):
     plt.figure(figsize=[10, 16], dpi=75)
     plt.subplot(211)
-    plt.plot(train[:, 0], train[:, 1])
+    plt.plot(train[:, 0], train[:, 1], 'o-')
     plt.title(info_train)
     draw_node_1d(root, bounds=(train[:, 0].min(), train[:, 0].max()))
     plt.xlabel('x1')
@@ -61,7 +62,7 @@ def plot_1d(root, train, info_train, test, info_test):
     plt.legend()
 
     plt.subplot(212)
-    plt.plot(test[:, 0], test[:, 1])
+    plt.plot(test[:, 0], test[:, 1], 'o-')
     draw_node_1d(root, bounds=(test[:, 0].min(), test[:, 0].max()))
     plt.title(info_test)
     plt.xlabel('x1')
@@ -71,47 +72,45 @@ def plot_1d(root, train, info_train, test, info_test):
     plt.show()
 
 
-def plot_2d(root, train, info_train, test, info_test, color0, color1):
+def plot_2d(root, train, info_train, test, info_test):
     plt.figure(figsize=[10, 16], dpi=75)
 
+    n_classes = int(train[:, -1].max()+1)
+    colormap = cm.gist_rainbow
+
+    def plot(data, info):
+        for i in range(n_classes):
+            class_i = data[:, -1] == i
+            plt.plot(data[np.where(class_i)[0], 0], data[np.where(class_i)[0], 1], 'o', ms=4, c=colormap(i/n_classes), label='Class {}'.format(i))
+
+            bounds = ((data[:, 0].min(), data[:, 0].max()), (data[:, 1].min(), data[:, 1].max()))
+            draw_node_2d(root, bounds, colormap, n_classes)
+        plt.title(info)
+        plt.xlabel('x1')
+        plt.ylabel('x2')
+        plt.legend()
+
     plt.subplot(211)
-    class0 = train[:, -1] == 0
-    plt.plot(train[np.where(class0)[0], 0], train[np.where(class0)[0], 1], 'o', ms=4, c=color0, label='Class 0')
-    plt.plot(train[np.where(1-class0)[0], 0], train[np.where(1-class0)[0], 1], 'o', ms=4, c=color1, label='Class 1')
-    draw_node_2d(root, ((train[:, 0].min(), train[:, 0].max()), (train[:, 1].min(), train[:, 1].max())), color0, color1)
-    plt.title(info_train)
-    plt.xlabel('x1')
-    plt.ylabel('x2')
-    plt.legend()
+    plot(train, info_train)
 
     plt.subplot(212)
-    class0 = test[:, -1] == 0
-    plt.plot(test[np.where(class0)[0], 0], test[np.where(class0)[0], 1], 'o', ms=4, c=color0, label='Class 0')
-    plt.plot(test[np.where(1-class0)[0], 0], test[np.where(1-class0)[0], 1], 'o', ms=4, c=color1, label='Class 1')
-    draw_node_2d(root, ((test[:, 0].min(), test[:, 0].max()), (test[:, 1].min(), test[:, 1].max())), color0, color1)
-    plt.title(info_test)
-    plt.xlabel('x1')
-    plt.ylabel('x2')
-    plt.legend()
+    plot(test, info_test)
 
     plt.show()
 
 
-def draw_node_2d(node, bounds, color0, color1):
+def draw_node_2d(node, bounds, colormap, n_classes):
     if node.child1 is not None:
-        draw_node_2d(node.child1, compute_child_bounds_2d(bounds, node, True), color0, color1)
-        draw_node_2d(node.child2, compute_child_bounds_2d(bounds, node, False), color0, color1)
+        draw_node_2d(node.child1, compute_child_bounds_2d(bounds, node, True), colormap, n_classes)
+        draw_node_2d(node.child2, compute_child_bounds_2d(bounds, node, False), colormap, n_classes)
     else:
         x = bounds[0][0]
         y = bounds[1][0]
         w = bounds[0][1] - x
         h = bounds[1][1] - y
 
-        mean = node.compute_mean()
-        alpha = np.abs(mean-0.5)
-        alpha = max(0.1, alpha)  # make sure very faint colors become visibly colored
-        color = color0 if mean < 0.5 else color1
-        plt.gca().add_patch(patches.Rectangle((x, y), w, h, color=color, alpha=alpha, linewidth=0))
+        mean = node.compute_posterior_mean()
+        plt.gca().add_patch(patches.Rectangle((x, y), w, h, color=colormap(mean/n_classes), alpha=0.1, linewidth=0))
 
 def compute_child_bounds_2d(bounds, parent, lower):
     b = bounds[parent.split_dimension]
@@ -131,7 +130,7 @@ def draw_node_1d(node, bounds):
         x1 = bounds[0]
         x2 = bounds[1]
 
-        mean = node.compute_mean()
+        mean = node.compute_posterior_mean()
         # alpha = np.abs(mean-0.5)
         # alpha = max(0.1, alpha)  # make sure very faint colors become visibly colored
         # color = color0 if mean < 0.5 else color1

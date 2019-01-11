@@ -2,24 +2,38 @@ from bayesian_decision_tree import *
 from demo_helper import *
 
 
-# demo script for binary classification
+# demo script for multi-class classification
 if __name__ == '__main__':
     proxies = {
-        'http': 'http://FR35023:Ats43pux^@inet-proxy-a.appl.swissbank.com:8080',
-        'https': 'https://FR35023:Ats43pux^@inet-proxy-a.appl.swissbank.com:8080'
+        'http': 'SET_HTTP_PROXY',
+        'https': 'SET_HTTPS_PROXY'
     }
 
     # binary classification: Beta prior
-    prior = (1, 1)
+    prior = (1, 1, 1, 1)
 
     # Bayesian tree parameters
     partition_prior = 0.9
     delta = 0
 
-    root = BinaryClassificationNode('root', partition_prior, prior)
+    root = MultiClassificationNode('root', partition_prior, prior)
 
-    # training/test data
-    train, test = load_ripley(proxies)
+    # training/test data: artificial 4-class data somewhat similar to the Ripley data
+    n = 1000
+    x1 = [1, 3, 2, 4]
+    x2 = [1, 1, 3, 3]
+    sd = 0.5
+    train = np.zeros((n, 3))
+    test = np.zeros((n, 3))
+    np.random.seed(666)
+    for i in range(4):
+        train[i * n // 4:(i + 1) * n // 4, 0] = np.random.normal(x1[i], sd, n // 4)
+        train[i * n // 4:(i + 1) * n // 4, 1] = np.random.normal(x2[i], sd, n // 4)
+        train[i * n // 4:(i + 1) * n // 4, 2] = i
+
+        test[i * n // 4:(i + 1) * n // 4, 0] = np.random.normal(x1[i], sd, n // 4)
+        test[i * n // 4:(i + 1) * n // 4, 1] = np.random.normal(x2[i], sd, n // 4)
+        test[i * n // 4:(i + 1) * n // 4, 2] = i
 
     # train
     X = train[:, :-1]
@@ -39,7 +53,7 @@ if __name__ == '__main__':
     print(info_test)
 
     # plot if 1D or 2D
-    dimensions = train.shape[1]-1
+    dimensions = train.shape[1] - 1
     if dimensions == 1:
         plot_1d(root, train, info_train, test, info_test)
     elif dimensions == 2:
