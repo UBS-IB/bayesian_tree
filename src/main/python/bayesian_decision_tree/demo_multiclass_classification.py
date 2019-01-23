@@ -42,6 +42,7 @@ if __name__ == '__main__':
     root.fit(X, y, delta)
     print(root)
     print()
+    print('Tree depth and number of leaves:', root.depth_and_leaves())
 
     # compute accuracy
     prediction_train = root.predict(train[:, :-1])
