@@ -57,7 +57,7 @@ class Node(ABC):
             y_sorted = y[sort_indices]
 
             # compute data likelihoods of all possible splits along this dimension and find split with highest data likelihood
-            log_p_data_post_split = self.compute_log_p_data_post_split(split_indices, y_sorted)
+            log_p_data_post_split = self.compute_log_p_data_post_split(y_sorted, split_indices, n_dim)
             i_max = log_p_data_post_split.argmax()
             if log_p_data_post_split[i_max] > log_p_data_post_best:
                 # remember new best split
@@ -171,7 +171,7 @@ class Node(ABC):
         pass
 
     @abstractmethod
-    def compute_log_p_data_post_split(self, split_indices, y):
+    def compute_log_p_data_post_split(self, y, split_indices, n_dim):
         pass
 
     @abstractmethod
@@ -243,7 +243,7 @@ class BinaryClassificationNode(Node):
 
         return log_p_prior + log_p_data
 
-    def compute_log_p_data_post_split(self, split_indices, y):
+    def compute_log_p_data_post_split(self, y, split_indices, n_dim):
         n = len(y)
         n_splits = len(split_indices)
 
@@ -255,7 +255,7 @@ class BinaryClassificationNode(Node):
         alpha, beta = self.prior
 
         betaln_prior = betaln(alpha, beta)
-        log_p_prior = np.log(self.partition_prior**(1+self.level) / n_splits)
+        log_p_prior = np.log(self.partition_prior**(1+self.level) / (n_splits * n_dim))
         log_p_data1 = self._compute_log_p_data(n1, k1, betaln_prior)
         log_p_data2 = self._compute_log_p_data(n2, k2, betaln_prior)
 
@@ -321,7 +321,7 @@ class MultiClassificationNode(Node):
 
         return log_p_prior + log_p_data
 
-    def compute_log_p_data_post_split(self, split_indices, y):
+    def compute_log_p_data_post_split(self, y, split_indices, n_dim):
         n_splits = len(split_indices)
 
         alphas = self.prior
@@ -335,7 +335,7 @@ class MultiClassificationNode(Node):
             k2[i] = total - k1[i]
 
         betaln_prior = multivariate_betaln(alphas)
-        log_p_prior = np.log(self.partition_prior**(1+self.level) / n_splits)
+        log_p_prior = np.log(self.partition_prior**(1+self.level) / (n_splits * n_dim))
         log_p_data1 = self._compute_log_p_data(k1, betaln_prior)
         log_p_data2 = self._compute_log_p_data(k2, betaln_prior)
 
@@ -393,7 +393,7 @@ class RegressionNode(Node):
 
         return log_p_prior + log_p_data
 
-    def compute_log_p_data_post_split(self, split_indices, y):
+    def compute_log_p_data_post_split(self, y, split_indices, n_dim):
         n = len(y)
         n_splits = len(split_indices)
 
@@ -419,7 +419,7 @@ class RegressionNode(Node):
         mu1, kappa1, alpha1, beta1 = self._compute_posterior(n1, mean1, y_minus_mean_sq_sum1)
         mu2, kappa2, alpha2, beta2 = self._compute_posterior(n2, mean2, y_minus_mean_sq_sum2)
 
-        log_p_prior = np.log(self.partition_prior**(1+self.level) / n_splits)
+        log_p_prior = np.log(self.partition_prior**(1+self.level) / (n_splits * n_dim))
         log_p_data1 = self._compute_log_p_data(alpha1, beta1, kappa1, n1)
         log_p_data2 = self._compute_log_p_data(alpha2, beta2, kappa2, n2)
 
