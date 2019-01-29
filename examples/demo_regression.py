@@ -1,6 +1,6 @@
 import numpy as np
 from bayesian_decision_tree.regression import RegressionNode
-from bayesian_decision_tree.demo_helper import plot_1d, plot_2d
+from examples.helper import plot_1d, plot_2d
 from sklearn.metrics import mean_squared_error
 
 
