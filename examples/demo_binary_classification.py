@@ -1,6 +1,6 @@
 import argparse
-from bayesian_tree.classification import BinaryClassificationNode
-from bayesian_tree.demo_helper import load_ripley, plot_1d, plot_2d
+from bayesian_decision_tree.classification import BinaryClassificationNode
+from bayesian_decision_tree.demo_helper import load_ripley, plot_1d, plot_2d
 
 
 def parse_args():
