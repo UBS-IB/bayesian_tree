@@ -3,7 +3,7 @@
 """
 import numpy as np
 from scipy.special import gammaln
-from bayesian_tree.base import Node
+from bayesian_decision_tree.base import Node
 
 
 class RegressionNode(Node):

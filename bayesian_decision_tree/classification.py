@@ -6,8 +6,8 @@
 import numpy as np
 
 from scipy.special import betaln, gammaln
-from bayesian_tree.base import Node
-from bayesian_tree.utils import multivariate_betaln
+from bayesian_decision_tree.base import Node
+from bayesian_decision_tree.utils import multivariate_betaln
 
 
 class BinaryClassificationNode(Node):
