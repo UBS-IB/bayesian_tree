@@ -10,9 +10,19 @@ This package implements:
 
 ## Installation
 
-To install `bayesian-tree` simply:
+To install `bayesian-decision-tree` simply:
 ```
 git clone https://[PATH TO UBS GITHUB REPO]
 cd bayesian_tree
 pip install -e .
+```
+
+## Usage
+
+We include some examples for various uses in the `examples` directory. However, very simply, you can do __one__ of :
+
+```
+from bayesian_decision_tree.classification import BinaryClassificationNode
+from bayesian_decision_tree.classification import MultiClassificationNode
+from bayesian_decision_tree.regression import RegressionNode
 ```

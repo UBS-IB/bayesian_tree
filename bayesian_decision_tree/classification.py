@@ -5,7 +5,7 @@
 """
 import numpy as np
 
-from scipy.special import betaln, gammaln
+from scipy.special import betaln
 from bayesian_decision_tree.base import Node
 from bayesian_decision_tree.utils import multivariate_betaln
 
