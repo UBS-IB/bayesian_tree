@@ -30,11 +30,13 @@ requirements = [
     'scipy==1.1.*',
     'numpy==1.13.*',
     'pandas==0.23.*',
+    'requests==2.19.1',
+    'scikit-learn==0.19.*',
 ]
 
 
 setup(
-    name='bayesian-tree',
+    name='bayesian-decision-tree',
     version='0.1.0',
     description='An implementation of the paper: A Bayesian Tree Algorithm by Nuti et al.',
     long_description=long_description,
