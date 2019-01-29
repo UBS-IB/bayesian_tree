@@ -1,10 +1,10 @@
-# A Bayesian Decision Tree Algoroithm
+# A Bayesian Decision Tree Algorithm
 This is an implementation of the paper: [A Bayesian Decision Tree Algorithm](https://arxiv.org/abs/1901.03214) by Nuti et al.
 
 ## Feature Support
 
 This package implements:
-* Binary Classification
+* Binary classification
 * Multi-class classification
 * Regression
 

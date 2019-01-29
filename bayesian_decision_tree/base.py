@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 
-
 class Node(ABC):
     """A node class with either no children, in which case it's a leaf node, or exactly two children."""
 
