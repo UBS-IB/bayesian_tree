@@ -1,15 +1,11 @@
-from bayesian_decision_tree import *
-from demo_helper import *
+import numpy as np
+from bayesian_tree.regression import RegressionNode
+from bayesian_tree.demo_helper import plot_1d, plot_2d
 from sklearn.metrics import mean_squared_error
 
 
 # demo script for regression
 if __name__ == '__main__':
-    proxies = {
-        'http': 'SET_HTTP_PROXY',
-        'https': 'SET_HTTPS_PROXY'
-    }
-
     # regression: Normal-Gamma prior, see https://en.wikipedia.org/wiki/Conjugate_prior#Continuous_distributions
     mu = 0  # probably better to choose the target mean
     sd_prior = 0.1
@@ -34,7 +30,6 @@ if __name__ == '__main__':
         np.sin(np.linspace(0, 10, 20)).reshape(-1, 1)
     ))
     test = train
-    # train, test = load_ripley(proxies)
 
     # train
     X = train[:, :-1]

@@ -1,14 +1,10 @@
-from bayesian_decision_tree import *
-from demo_helper import *
+import numpy as np
+from bayesian_tree.classification import MultiClassificationNode
+from bayesian_tree.demo_helper import plot_1d, plot_2d
 
 
 # demo script for multi-class classification
 if __name__ == '__main__':
-    proxies = {
-        'http': 'SET_HTTP_PROXY',
-        'https': 'SET_HTTPS_PROXY'
-    }
-
     # binary classification: Beta prior
     prior = (1, 1, 1, 1)
 
