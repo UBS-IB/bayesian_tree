@@ -1,14 +1,34 @@
-from bayesian_decision_tree import *
-from demo_helper import *
+import argparse
+from bayesian_decision_tree.classification import BinaryClassificationNode
+from examples.helper import load_ripley, plot_1d, plot_2d
+
+
+def parse_args():
+    """Parse input arguments from the command line
+    :return: the result from the ArgumentParser
+    """
+    parser = argparse.ArgumentParser(
+        description="Run demo of binary classification")
+
+    parser.add_argument('--http_proxy', action='store',
+                        required=False, help='HTTP Proxy', default=None
+                        )
+    parser.add_argument('--https_proxy', action='store',
+                        required=False, help='HTTPS Proxy', default=None
+                        )
+    return parser.parse_args()
 
 
 # demo script for binary classification
 if __name__ == '__main__':
-    proxies = {
-        'http': 'SET_HTTP_PROXY',
-        'https': 'SET_HTTPS_PROXY'
-    }
 
+    args = parse_args()
+
+    proxies = {
+        'http': args.http_proxy,
+        'https': args.https_proxy
+    }
+    print(proxies)
     # binary classification: Beta prior
     prior = (1, 1)
 
