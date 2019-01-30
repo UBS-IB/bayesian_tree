@@ -111,17 +111,20 @@ def plot_2d(root, train, info_train, test, info_test):
 
 
 def draw_node_2d(node, bounds, colormap, n_classes):
-    if node.child1 is not None:
-        draw_node_2d(node.child1, compute_child_bounds_2d(bounds, node, True), colormap, n_classes)
-        draw_node_2d(node.child2, compute_child_bounds_2d(bounds, node, False), colormap, n_classes)
-    else:
+    if node.is_leaf():
         x = bounds[0][0]
         y = bounds[1][0]
         w = bounds[0][1] - x
         h = bounds[1][1] - y
 
         mean = node.compute_posterior_mean()
+        if not node.is_regression:
+            mean = (np.arange(len(mean)) * mean).sum()
+
         plt.gca().add_patch(patches.Rectangle((x, y), w, h, color=colormap(mean/n_classes), alpha=0.1, linewidth=0))
+    else:
+        draw_node_2d(node.child1, compute_child_bounds_2d(bounds, node, True), colormap, n_classes)
+        draw_node_2d(node.child2, compute_child_bounds_2d(bounds, node, False), colormap, n_classes)
 
 
 def compute_child_bounds_2d(bounds, parent, lower):
@@ -137,10 +140,7 @@ def compute_child_bounds_1d(bounds, parent, lower):
 
 
 def draw_node_1d(node, bounds):
-    if node.child1 is not None:
-        draw_node_1d(node.child1, compute_child_bounds_1d(bounds, node, True))
-        draw_node_1d(node.child2, compute_child_bounds_1d(bounds, node, False))
-    else:
+    if node.is_leaf():
         x1 = bounds[0]
         x2 = bounds[1]
 
@@ -149,3 +149,6 @@ def draw_node_1d(node, bounds):
         # alpha = max(0.1, alpha)  # make sure very faint colors become visibly colored
         # color = color0 if mean < 0.5 else color1
         plt.plot([x1, x2], [mean, mean], 'r')
+    else:
+        draw_node_1d(node.child1, compute_child_bounds_1d(bounds, node, True))
+        draw_node_1d(node.child2, compute_child_bounds_1d(bounds, node, False))

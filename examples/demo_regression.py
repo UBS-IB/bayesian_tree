@@ -37,6 +37,7 @@ if __name__ == '__main__':
     root.fit(X, y, delta)
     print(root)
     print()
+    print('Tree depth and number of leaves:', root.depth_and_leaves())
 
     # compute RMSE
     rmse_train = np.sqrt(mean_squared_error(root.predict(train[:, :-1]), train[:, -1]))
