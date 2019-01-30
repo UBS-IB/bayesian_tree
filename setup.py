@@ -41,7 +41,7 @@ setup(
     description='An implementation of the paper: A Bayesian Tree Algorithm by Nuti et al.',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url='<link to our public github profile>',
+    url='https://github.com/UBS-IB/bayesian_tree',
     author='UBS SDL Data Science',
     author_email='dl-frc-sdl-datascience@ubs.com',
     classifiers=[

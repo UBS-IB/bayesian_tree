@@ -12,7 +12,7 @@ This package implements:
 
 To install `bayesian-decision-tree` simply:
 ```
-git clone https://[PATH TO UBS GITHUB REPO]
+git clone https://github.com/UBS-IB/bayesian_tree
 cd bayesian_tree
 pip install -e .
 ```
