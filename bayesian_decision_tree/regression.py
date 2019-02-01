@@ -1,6 +1,7 @@
 """
 This module declares the Bayesian regression tree algorithm:
-- RegressionNode
+
+* RegressionNode
 """
 import numpy as np
 from scipy.special import gammaln
@@ -10,11 +11,74 @@ from bayesian_decision_tree.base import Node
 
 class RegressionNode(Node):
     """
-    Bayesian regression tree. Uses a Normal-Gamma(mu, kappa, alpha, beta) prior assuming unknown mean and unknown variance.
+    Bayesian regression tree. Uses a Normal-gamma(mu, kappa, alpha, beta) prior assuming unknown mean and unknown variance.
+
+    Parameters
+    ----------
+    partition_prior : float, must be > 0.0 and < 1.0, typical value: 0.9
+        The prior probability of splitting a node's data into two children.
+
+        Small values tend to reduce the tree depth, leading to less expressiveness
+        but also to less overfitting.
+
+        Large values tend to increase the tree depth and thus lead to the tree
+        better fitting the data, which can lead to overfitting.
+
+    prior : array_like, shape = [4]
+        The prior hyperparameters [mu, kappa, alpha, beta] of the Normal-gamma
+        distribution (see also [1], [2], [3]):
+
+        - mu:    prior pseudo-observation sample mean
+        - kappa: prior pseudo-observation count used to compute mu
+        - alpha: (prior pseudo-observation count used to compute sample variance)/2
+        - beta:  alpha * (prior pseudo-observation sample variance)
+
+        It is usually easier to compute these hyperparameters off more intuitive
+        base quantities, see examples section.
+
+    posterior : DO NOT SET, ONLY USED BY SUBCLASSES
+
+    level : DO NOT SET, ONLY USED BY SUBCLASSES
+
+    See also
+    --------
+    demo_regression.py
+    BinaryClassificationNode
+    MultiClassificationNode
+
+    References
+    ----------
+
+    .. [1] https://en.wikipedia.org/wiki/Normal-gamma_distribution
+
+    .. [2] https://en.wikipedia.org/wiki/Normal-gamma_distribution#Interpretation_of_parameters
+
+    .. [3] https://en.wikipedia.org/wiki/Conjugate_prior#Continuous_distributions
+
+    Examples
+    --------
+    It is usually convenient to compute the prior hyperparameters as follows:
+
+    >>> # prior mean; set to the mean of the target
+    >>> mu = ...
+    >>>
+    >>> # prior standard deviation; set to about 0.1 times the standard deviation of the target
+    >>> sd_prior = ...
+    >>>
+    >>> # the number of prior pseudo-observations; set to roughly 1 - 10 % of the number of training samples
+    >>> prior_obs = ...
+    >>>
+    >>> # now compute the prior
+    >>> kappa = prior_obs
+    >>> alpha = prior_obs/2
+    >>> beta = alpha*sd_prior**2
+    >>> prior = [mu, kappa, alpha, beta]
+
+    See also `demo_regression.py`.
     """
 
-    def __init__(self, name, partition_prior, prior, posterior=None, level=0):
-        super().__init__(name, partition_prior, prior, posterior, level, RegressionNode, True)
+    def __init__(self, partition_prior, prior, posterior=None, level=0):
+        super().__init__(partition_prior, prior, posterior, level, RegressionNode, True)
 
     def check_target(self, y):
         pass

@@ -15,7 +15,7 @@ class MultiClassificationNodeTest(TestCase):
             [1.0, 1],
         ])
 
-        root = MultiClassificationNode('root', 0.5, (1, 1))
+        root = MultiClassificationNode(0.5, (1, 1))
         root.fit(Xy[:, :-1], Xy[:, -1])
         print(root)
 
@@ -76,7 +76,7 @@ class MultiClassificationNodeTest(TestCase):
             [2.3, 0],
         ])
 
-        root = MultiClassificationNode('root', 0.9, (1, 1))
+        root = MultiClassificationNode(0.9, (1, 1))
         root.fit(Xy[:, :-1], Xy[:, -1])
         print(root)
 

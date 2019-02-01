@@ -10,8 +10,7 @@ class Node(ABC):
     and prediction tasks and outsources the low-level work to the subclasses.
     """
 
-    def __init__(self, name, partition_prior, prior, posterior, level, child_type, is_regression):
-        self.name = name
+    def __init__(self, partition_prior, prior, posterior, level, child_type, is_regression):
         self.partition_prior = partition_prior
         self.prior = np.array(prior)
         self.posterior = np.array(posterior) if posterior is not None else np.array(prior)
@@ -27,8 +26,35 @@ class Node(ABC):
         self.child1 = None
         self.child2 = None
 
-    def fit(self, X, y, delta=0, verbose=False, feature_names=None):
-        """Trains this node with the given feature data matrix (or pandas DataFrame) X and the given target vector y."""
+    def fit(self, X, y, delta=0.0, verbose=False, feature_names=None):
+        """
+        Trains this classification or regression tree using the training set (X, y).
+
+        Parameters
+        ----------
+        X : array-like or pandas.DataFrame, shape = [n_samples, n_features]
+            The training input samples.
+
+        y : array-like, shape = [n_samples] or [n_samples, n_outputs]
+            The target values. In case of binary classification only the
+            integers 0 and 1 are allowed. In case of multi-class classification
+            only the integers 0, 1, ..., {n_classes-1} are allowed. In case of
+            regression all finite float values are allowed.
+
+        delta : float, default=0.0
+            Determines the strengthening of the prior as the tree grows deeper,
+            see [1].
+
+        verbose : bool, default=False
+            Prints fitting progress.
+
+        feature_names : DO NOT SET, ONLY USED INTERNALL
+
+        References
+        ----------
+
+        .. [1] https://arxiv.org/abs/1901.03214
+        """
 
         if verbose:
             print('Training level {} with {:10} data points'.format(self.level, len(y)))
@@ -36,6 +62,8 @@ class Node(ABC):
         if feature_names is None and type(X) is pd.DataFrame:
             feature_names = X.columns
             X = X.values
+
+        y = y.squeeze()
 
         if self.level == 0:
             self.check_target(y)
@@ -90,8 +118,8 @@ class Node(ABC):
             self.split_feature_name = feature_names[best_split_dimension] if feature_names is not None else None
             self.split_value = 0.5 * (X_sorted[best_split_index-1, best_split_dimension] + X_sorted[best_split_index, best_split_dimension])
 
-            self.child1 = self.child_type(self.name + '-child1', self.partition_prior, prior_child1, posterior1, self.level+1)
-            self.child2 = self.child_type(self.name + '-child2', self.partition_prior, prior_child2, posterior2, self.level+1)
+            self.child1 = self.child_type(self.partition_prior, prior_child1, posterior1, self.level+1)
+            self.child2 = self.child_type(self.partition_prior, prior_child2, posterior2, self.level+1)
 
             if len(X1) > 1:
                 self.child1.fit(X1, y1, delta, verbose, feature_names)
@@ -99,9 +127,49 @@ class Node(ABC):
                 self.child2.fit(X2, y2, delta, verbose, feature_names)
 
     def predict(self, X):
-        return self._predict(X, predict_class=True)
+        """Predict class or regression value for X.
+
+        For a classification model, the predicted class for each sample in X is
+        returned. For a regression model, the predicted value based on X is
+        returned.
+
+        Parameters
+        ----------
+        X : array-like or pandas.DataFrame, shape = [n_samples, n_features]
+            The input samples.
+
+        Returns
+        -------
+        y : array of shape = [n_samples]
+            The predicted classes, or the predict values.
+        """
+
+        if type(X) is pd.DataFrame:
+            X = X.values
+
+        prediction = self._predict(X, predict_class=True)
+        if type(prediction) != np.ndarray:
+            # if the tree consists of a single leaf only then we have to cast that single float back to an array
+            prediction = self._create_predictions_merged(X, True, prediction)
+
+        return prediction
 
     def predict_proba(self, X):
+        """Predict class probabilities of the input samples X.
+
+        Parameters
+        ----------
+        X : array-like or pandas.DataFrame, shape = [n_samples, n_features]
+            The input samples.
+
+        Returns
+        -------
+        p : array of shape = [n_samples, n_classes]
+            The class probabilities of the input samples.
+        """
+        if type(X) is pd.DataFrame:
+            X = X.values
+
         return self._predict(X, predict_class=False)
 
     def _predict(self, X, predict_class):
@@ -147,6 +215,14 @@ class Node(ABC):
         return np.zeros(len(X)) if predict_class else np.zeros((len(X), predictions_child.shape[1]))
 
     def depth_and_leaves(self):
+        """Compute and return the tree depth and the number of leaves.
+
+        Returns
+        -------
+        depth_and_leaves : tuple of (int, int)
+            The tree depth and the number of leaves.
+        """
+
         return self._update_depth_and_leaves(0, 0)
 
     def _update_depth_and_leaves(self, depth, leaves):
