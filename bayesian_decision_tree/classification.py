@@ -1,7 +1,8 @@
 """
 This module declares the Bayesian classification tree algorithms:
-- BinaryClassificationNode
-- MultiClassificationNode
+
+* BinaryClassificationNode
+* MultiClassificationNode
 """
 import numpy as np
 from scipy.special import betaln
@@ -12,11 +13,55 @@ from bayesian_decision_tree.utils import multivariate_betaln
 
 class BinaryClassificationNode(Node):
     """
-    Bayesian binary classification tree. Uses a beta prior. This is a
+    Bayesian binary classification tree. Uses a beta prior.
+
+    Parameters
+    ----------
+    partition_prior : float, must be > 0.0 and < 1.0, typical value: 0.9
+        The prior probability of splitting a node's data into two children.
+
+        Small values tend to reduce the tree depth, leading to less expressiveness
+        but also to less overfitting.
+
+        Large values tend to increase the tree depth and thus lead to the tree
+        better fitting the data, which can lead to overfitting.
+
+    prior : array_like, shape = [2]
+        The prior hyperparameters [alpha, beta] for the beta conjugate prior, see
+        [1] and [2]. Both alpha and beta must be positive, where alpha represents
+        the number of prior pseudo-observations of class 0 and where beta represents
+        the number of prior pseudo-observations of class 1.
+
+        Small values for alpha and beta represent a weak prior which leads to the
+        training data dominating the posterior. This can lead to overfitting.
+
+        Large values for alpha and beta represent a strong prior and thus put less
+        weight on the data. This can be used for regularization.
+
+    posterior : DO NOT SET, ONLY USED BY SUBCLASSES
+
+    level : DO NOT SET, ONLY USED BY SUBCLASSES
+
+    See also
+    --------
+    demo_binary_classification.py
+    MultiClassificationNode
+    RegressionNode
+
+    References
+    ----------
+
+    .. [1] https://en.wikipedia.org/wiki/Beta_distribution#Bayesian_inference
+
+    .. [2] https://en.wikipedia.org/wiki/Conjugate_prior#Discrete_distributions
+
+    Examples
+    --------
+    See `demo_binary_classification.py`.
     """
 
-    def __init__(self, name, partition_prior, prior, posterior=None, level=0):
-        super().__init__(name, partition_prior, prior, posterior, level, BinaryClassificationNode, False)
+    def __init__(self, partition_prior, prior, posterior=None, level=0):
+        super().__init__(partition_prior, prior, posterior, level, BinaryClassificationNode, False)
         assert len(self.prior) == 2,\
             'Expected a Beta(alpha, beta) prior, i.e., a sequence with two entries, but got {}'.format(prior)
         assert len(self.posterior) == 2,\
@@ -86,10 +131,54 @@ class BinaryClassificationNode(Node):
 
 class MultiClassificationNode(Node):
     """
-    Bayesian multi-class classification tree. Uses a Dirichlet prior."""
+    Bayesian multi-class classification tree. Uses a Dirichlet prior.
 
-    def __init__(self, name, partition_prior, prior, posterior=None, level=0):
-        super().__init__(name, partition_prior, prior, posterior, level, MultiClassificationNode, False)
+    Parameters
+    ----------
+    partition_prior : float, must be > 0.0 and < 1.0, typical value: 0.9
+        The prior probability of splitting a node's data into two children.
+
+        Small values tend to reduce the tree depth, leading to less expressiveness
+        but also to less overfitting.
+
+        Large values tend to increase the tree depth and thus lead to the tree
+        better fitting the data, which can lead to overfitting.
+
+    prior : array_like, shape = [number of classes]
+        The hyperparameters [alpha_0, alpha_1, ..., alpha_{N-1}] of the Dirichlet
+        conjugate prior, see [1] and [2]. All alpha_i must be positive, where
+        alpha_i represents the number of prior pseudo-observations of class i.
+
+        Small values for alpha_i represent a weak prior which leads to the
+        training data dominating the posterior. This can lead to overfitting.
+
+        Large values for alpha_i represent a strong prior and thus put less weight
+        on the data. This can be used for regularization.
+
+    posterior : DO NOT SET, ONLY USED BY SUBCLASSES
+
+    level : DO NOT SET, ONLY USED BY SUBCLASSES
+
+    See also
+    --------
+    demo_multiclass_classification.py
+    BinaryClassificationNode
+    RegressionNode
+
+    References
+    ----------
+
+    .. [1] https://en.wikipedia.org/wiki/Dirichlet_distribution#Conjugate_to_categorical/multinomial
+
+    .. [2] https://en.wikipedia.org/wiki/Conjugate_prior#Discrete_distributions
+
+    Examples
+    --------
+    See `demo_multiclass_classification.py`.
+    """
+
+    def __init__(self, partition_prior, prior, posterior=None, level=0):
+        super().__init__(partition_prior, prior, posterior, level, MultiClassificationNode, False)
         assert len(self.prior) == len(self.posterior)
 
     def check_target(self, y):

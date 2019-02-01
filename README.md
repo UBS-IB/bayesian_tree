@@ -26,3 +26,4 @@ from bayesian_decision_tree.classification import BinaryClassificationNode
 from bayesian_decision_tree.classification import MultiClassificationNode
 from bayesian_decision_tree.regression import RegressionNode
 ```
+followed by instantiating the node with appropriate parameters and then calling `fit(X, y)` on it.

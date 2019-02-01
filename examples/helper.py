@@ -61,55 +61,55 @@ def load_gamma(proxies):
     return train, test
 
 
-def plot_1d(root, train, info_train, test, info_test):
+def plot_1d(root, X_train, y_train, info_train, X_test, y_test, info_test):
     plt.figure(figsize=[10, 16], dpi=75)
     plt.subplot(211)
-    plt.plot(train[:, 0], train[:, 1], 'o-')
+    plt.plot(X_train[:, 0], y_train, 'o-')
     plt.title(info_train)
-    draw_node_1d(root, bounds=(train[:, 0].min(), train[:, 0].max()))
-    plt.xlabel('x1')
-    plt.ylabel('x2')
+    draw_node_1d(root, bounds=(X_train[:, 0].min(), X_train[:, 0].max()))
+    plt.xlabel('x0')
+    plt.ylabel('x1')
     plt.legend()
 
     plt.subplot(212)
-    plt.plot(test[:, 0], test[:, 1], 'o-')
-    draw_node_1d(root, bounds=(test[:, 0].min(), test[:, 0].max()))
+    plt.plot(X_test[:, 0], y_test, 'o-')
+    draw_node_1d(root, bounds=(X_test[:, 0].min(), X_test[:, 0].max()))
     plt.title(info_test)
-    plt.xlabel('x1')
-    plt.ylabel('x2')
+    plt.xlabel('x0')
+    plt.ylabel('x1')
     plt.legend()
 
     plt.show()
 
 
-def plot_2d(root, train, info_train, test, info_test):
+def plot_2d(root, X_train, y_train, info_train, X_test, y_test, info_test):
     plt.figure(figsize=[10, 16], dpi=75)
 
-    n_classes = int(train[:, -1].max()+1)
+    n_classes = int(y_train.max()+1)
     colormap = cm.gist_rainbow
 
-    def plot(data, info):
+    def plot(X, y, info):
         for i in range(n_classes):
-            class_i = data[:, -1] == i
-            plt.plot(data[np.where(class_i)[0], 0],
-                     data[np.where(class_i)[0], 1],
+            class_i = y == i
+            plt.plot(X[np.where(class_i)[0], 0],
+                     X[np.where(class_i)[0], 1],
                      'o',
                      ms=4,
                      c=colormap(i/n_classes),
                      label='Class {}'.format(i))
 
-            bounds = ((data[:, 0].min(), data[:, 0].max()), (data[:, 1].min(), data[:, 1].max()))
+            bounds = ((X[:, 0].min(), X[:, 0].max()), (X[:, 1].min(), X[:, 1].max()))
             draw_node_2d(root, bounds, colormap, n_classes)
         plt.title(info)
-        plt.xlabel('x1')
-        plt.ylabel('x2')
+        plt.xlabel('x0')
+        plt.ylabel('x1')
         plt.legend()
 
     plt.subplot(211)
-    plot(train, info_train)
+    plot(X_train, y_train, info_train)
 
     plt.subplot(212)
-    plot(test, info_test)
+    plot(X_test, y_test, info_test)
 
     plt.show()
 
@@ -145,14 +145,14 @@ def compute_child_bounds_1d(bounds, parent, lower):
 
 def draw_node_1d(node, bounds):
     if node.is_leaf():
-        x1 = bounds[0]
-        x2 = bounds[1]
+        x0 = bounds[0]
+        x1 = bounds[1]
 
         mean = node.compute_posterior_mean()
         # alpha = np.abs(mean-0.5)
         # alpha = max(0.1, alpha)  # make sure very faint colors become visibly colored
         # color = color0 if mean < 0.5 else color1
-        plt.plot([x1, x2], [mean, mean], 'r')
+        plt.plot([x0, x1], [mean, mean], 'r')
     else:
         draw_node_1d(node.child1, compute_child_bounds_1d(bounds, node, True))
         draw_node_1d(node.child2, compute_child_bounds_1d(bounds, node, False))
