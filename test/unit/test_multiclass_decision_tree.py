@@ -3,7 +3,7 @@ from unittest import TestCase
 import numpy as np
 from numpy.testing import assert_array_equal, assert_array_almost_equal
 
-from bayesian_decision_tree import MultiClassificationNode
+from bayesian_decision_tree.classification import MultiClassificationNode
 
 
 class MultiClassificationNodeTest(TestCase):

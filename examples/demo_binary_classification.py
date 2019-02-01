@@ -1,4 +1,5 @@
 import argparse
+
 from bayesian_decision_tree.classification import BinaryClassificationNode
 from examples.helper import load_ripley, plot_1d, plot_2d
 

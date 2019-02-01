@@ -1,19 +1,20 @@
-"""This module declares the Bayesian Tree regression algorithms:
-* RegressionNode
+"""
+This module declares the Bayesian regression tree algorithm:
+- RegressionNode
 """
 import numpy as np
 from scipy.special import gammaln
+
 from bayesian_decision_tree.base import Node
 
 
 class RegressionNode(Node):
     """
-    Concrete node implementation for regression using a Normal-Gamma(mu, kappa, alpha, beta) prior
-    for unknown mean and unknown variance.
+    Bayesian regression tree. Uses a Normal-Gamma(mu, kappa, alpha, beta) prior assuming unknown mean and unknown variance.
     """
 
     def __init__(self, name, partition_prior, prior, posterior=None, level=0):
-        super().__init__(name, partition_prior, prior, posterior, level, RegressionNode)
+        super().__init__(name, partition_prior, prior, posterior, level, RegressionNode, True)
 
     def check_target(self, y):
         pass
@@ -23,13 +24,13 @@ class RegressionNode(Node):
         mean = y.mean()
 
         y_minus_mean_sq_sum = ((y - mean)**2).sum()
-        mu_post, kappa_post, alpha_post, beta_post = self._compute_posterior_internal(n, mean, y_minus_mean_sq_sum)
+        mu_post, kappa_post, alpha_post, beta_post = self._compute_posterior(n, mean, y_minus_mean_sq_sum)
         log_p_prior = np.log(1 - self.partition_prior**(1 + self.level))
         log_p_data = self._compute_log_p_data(alpha_post, beta_post, kappa_post, n)
 
         return log_p_prior + log_p_data
 
-    def compute_log_p_data_post_split(self, split_indices, y):
+    def compute_log_p_data_post_split(self, y, split_indices, n_dim):
         n = len(y)
         n_splits = len(split_indices)
 
@@ -52,10 +53,10 @@ class RegressionNode(Node):
             y_minus_mean_sq_sum1 = y_minus_mean_sq_sum1[split_indices_minus_1]
             y_minus_mean_sq_sum2 = y_minus_mean_sq_sum2[split_indices_minus_1]
 
-        mu1, kappa1, alpha1, beta1 = self._compute_posterior_internal(n1, mean1, y_minus_mean_sq_sum1)
-        mu2, kappa2, alpha2, beta2 = self._compute_posterior_internal(n2, mean2, y_minus_mean_sq_sum2)
+        mu1, kappa1, alpha1, beta1 = self._compute_posterior(n1, mean1, y_minus_mean_sq_sum1)
+        mu2, kappa2, alpha2, beta2 = self._compute_posterior(n2, mean2, y_minus_mean_sq_sum2)
 
-        log_p_prior = np.log(self.partition_prior**(1+self.level) / n_splits)
+        log_p_prior = np.log(self.partition_prior**(1+self.level) / (n_splits * n_dim))
         log_p_data1 = self._compute_log_p_data(alpha1, beta1, kappa1, n1)
         log_p_data2 = self._compute_log_p_data(alpha2, beta2, kappa2, n2)
 
@@ -69,9 +70,9 @@ class RegressionNode(Node):
         mean = y.mean()
         y_minus_mean_sq_sum = ((y - mean)**2).sum()
 
-        return self._compute_posterior_internal(n, mean, y_minus_mean_sq_sum, delta)
+        return self._compute_posterior(n, mean, y_minus_mean_sq_sum, delta)
 
-    def _compute_posterior_internal(self, n, mean, y_minus_mean_sq_sum, delta=1):
+    def _compute_posterior(self, n, mean, y_minus_mean_sq_sum, delta=1):
         mu, kappa, alpha, beta = self.prior
 
         # see https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf, equations (86) - (89)
@@ -86,7 +87,8 @@ class RegressionNode(Node):
     def compute_posterior_mean(self):
         return self.posterior[0]  # mu is the posterior mean
 
-    def predict_leaf(self):
+    def _predict_leaf(self):
+        # predict posterior mean
         return self.compute_posterior_mean()
 
     def _compute_log_p_data(self, alpha_new, beta_new, kappa_new, n_new):

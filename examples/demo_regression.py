@@ -1,8 +1,8 @@
 import numpy as np
-from bayesian_decision_tree.regression import RegressionNode
-from examples.helper import plot_1d, plot_2d
 from sklearn.metrics import mean_squared_error
 
+from bayesian_decision_tree.regression import RegressionNode
+from examples.helper import plot_1d, plot_2d
 
 # demo script for regression
 if __name__ == '__main__':
