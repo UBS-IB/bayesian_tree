@@ -26,7 +26,7 @@ class Node(ABC):
         self.child1 = None
         self.child2 = None
 
-    def fit(self, X, y, delta=0.0, verbose=False, feature_names=None):
+    def fit(self, X, y, delta=0.0, verbose=False):
         """
         Trains this classification or regression tree using the training set (X, y).
 
@@ -48,25 +48,30 @@ class Node(ABC):
         verbose : bool, default=False
             Prints fitting progress.
 
-        feature_names : DO NOT SET, ONLY USED INTERNALL
-
         References
         ----------
 
         .. [1] https://arxiv.org/abs/1901.03214
         """
 
-        if verbose:
-            print('Training level {} with {:10} data points'.format(self.level, len(y)))
-
-        if feature_names is None and type(X) is pd.DataFrame:
+        feature_names = None
+        if type(X) is pd.DataFrame:
             feature_names = X.columns
             X = X.values
+
+        if type(y) == list:
+            y = np.array(y)
 
         y = y.squeeze()
 
         if self.level == 0:
             self.check_target(y)
+
+        return self._fit(X, y, delta, verbose, feature_names)
+
+    def _fit(self, X, y, delta, verbose, feature_names):
+        if verbose:
+            print('Training level {} with {:10} data points'.format(self.level, len(y)))
 
         # compute data likelihood of not splitting and remember it as the best option so far
         log_p_data_post_best = self.compute_log_p_data_post_no_split(y)
@@ -122,9 +127,9 @@ class Node(ABC):
             self.child2 = self.child_type(self.partition_prior, prior_child2, posterior2, self.level+1)
 
             if len(X1) > 1:
-                self.child1.fit(X1, y1, delta, verbose, feature_names)
+                self.child1._fit(X1, y1, delta, verbose, feature_names)
             if len(X2) > 1:
-                self.child2.fit(X2, y2, delta, verbose, feature_names)
+                self.child2._fit(X2, y2, delta, verbose, feature_names)
 
     def predict(self, X):
         """Predict class or regression value for X.
