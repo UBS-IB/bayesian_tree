@@ -1,3 +1,7 @@
+"""
+A collection of publicly available data sets to test classification algorithms on and some helper
+functions for plotting.
+"""
 import matplotlib.pyplot as plt
 import numpy as np
 import requests
