@@ -37,9 +37,9 @@ class Node(ABC):
 
         y : array-like, shape = [n_samples] or [n_samples, n_outputs]
             The target values. In case of binary classification only the
-            integers 0 and 1 are allowed. In case of multi-class classification
-            only the integers 0, 1, ..., {n_classes-1} are allowed. In case of
-            regression all finite float values are allowed.
+            integers 0 and 1 are permitted. In case of multi-class classification
+            only the integers 0, 1, ..., {n_classes-1} are permitted. In case of
+            regression all finite float values are permitted.
 
         delta : float, default=0.0
             Determines the strengthening of the prior as the tree grows deeper,
