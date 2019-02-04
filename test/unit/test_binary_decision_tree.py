@@ -7,6 +7,56 @@ from bayesian_decision_tree.classification import BinaryClassificationNode
 
 
 class BinaryClassificationNodeTest(TestCase):
+    def test_one_partition(self):
+        Xy = np.array([
+            [0.0, 0],
+            [0.1, 1],
+            [0.9, 0],
+            [1.0, 1],
+            [1.0, 0],
+        ])
+
+        root = BinaryClassificationNode(0.5, (1, 1))
+        root.fit(Xy[:, :-1], Xy[:, -1])
+        print(root)
+
+        self.assertEqual(root.depth_and_leaves(), (0, 1))
+
+        self.assertIsNone(root.child1)
+        self.assertIsNone(root.child2)
+
+        self.assertEqual(root.split_dimension, -1)
+        self.assertEqual(root.split_value, None)
+        self.assertEqual(root.split_index, -1)
+
+        self.assertEqual(root.predict(0.0), 0)
+        self.assertEqual(root.predict(0.49), 0)
+        self.assertEqual(root.predict(0.51), 0)
+        self.assertEqual(root.predict(1.0), 0)
+
+        assert_array_equal(root.predict([0.0, 0.49, 0.51, 1.0]), np.array([0, 0, 0, 0]))
+        assert_array_equal(root.predict([[0.0], [0.49], [0.51], [1.0]]), np.array([0, 0, 0, 0]))
+
+        assert_array_equal(root.predict(np.array([0.0, 0.49, 0.51, 1.0])), np.array([0, 0, 0, 0]))
+        assert_array_equal(root.predict(np.array([[0.0], [0.49], [0.51], [1.0]])), np.array([0, 0, 0, 0]))
+
+        assert_array_almost_equal(root.predict_proba(0.0), np.array([[(1+3)/7, (1+2)/7]]))
+        assert_array_almost_equal(root.predict_proba(0.49), np.array([[(1+3)/7, (1+2)/7]]))
+        assert_array_almost_equal(root.predict_proba(0.51), np.array([[(1+3)/7, (1+2)/7]]))
+        assert_array_almost_equal(root.predict_proba(1.0), np.array([[(1+3)/7, (1+2)/7]]))
+        assert_array_almost_equal(root.predict_proba(np.array([0.0, 0.49, 0.51, 1.0])), np.array([
+            [(1+3)/7, (1+2)/7],
+            [(1+3)/7, (1+2)/7],
+            [(1+3)/7, (1+2)/7],
+            [(1+3)/7, (1+2)/7],
+        ]))
+        assert_array_almost_equal(root.predict_proba(np.array([[0.0], [0.49], [0.51], [1.0]])), np.array([
+            [(1+3)/7, (1+2)/7],
+            [(1+3)/7, (1+2)/7],
+            [(1+3)/7, (1+2)/7],
+            [(1+3)/7, (1+2)/7],
+        ]))
+
     def test_two_partitions(self):
         Xy = np.array([
             [0.0, 0],

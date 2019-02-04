@@ -130,6 +130,9 @@ class Node(ABC):
                 self.child1._fit(X1, y1, delta, verbose, feature_names)
             if len(X2) > 1:
                 self.child2._fit(X2, y2, delta, verbose, feature_names)
+        else:
+            # no, so this node is a leaf node
+            self.posterior = self.compute_posterior(y)
 
     def predict(self, X):
         """Predict class or regression value for X.
@@ -151,6 +154,9 @@ class Node(ABC):
 
         if type(X) is pd.DataFrame:
             X = X.values
+
+        if type(X) == list:
+            X = np.array(X)
 
         prediction = self._predict(X, predict_class=True)
         if type(prediction) != np.ndarray:
@@ -182,7 +188,12 @@ class Node(ABC):
             # probability prediction for regressions makes no sense
             raise ValueError('Cannot predict probabilities for regression trees')
 
-        if not self.is_leaf():
+        if self.is_leaf():
+            prediction = self._predict_leaf() if predict_class else self.compute_posterior_mean().reshape(1, -1)
+            predictions = self._create_predictions_merged(X, predict_class, prediction)
+            predictions[:] = prediction
+            return predictions
+        else:
             # query children and then re-assemble
 
             # convert X to a correctly shaped numpy array
@@ -209,15 +220,13 @@ class Node(ABC):
                 predictions_merged[indices2] = predictions2
 
             return predictions_merged
-        else:
-            # no children -> predict leaf
-            return self._predict_leaf() if predict_class else self.compute_posterior_mean().reshape(1, -1)
 
     @staticmethod
     def _create_predictions_merged(X, predict_class, predictions_child):
         # class predictions: 1D array
         # probability predictions: 2D array
-        return np.zeros(len(X)) if predict_class else np.zeros((len(X), predictions_child.shape[1]))
+        len_X = len(X) if type(X) == np.ndarray else 1
+        return np.zeros(len_X) if predict_class else np.zeros((len_X, predictions_child.shape[1]))
 
     def depth_and_leaves(self):
         """Compute and return the tree depth and the number of leaves.

@@ -110,7 +110,7 @@ class BinaryClassificationNode(Node):
         alpha_post = alpha + delta*(n-k)
         beta_post = beta + delta*k
 
-        return alpha_post, beta_post
+        return np.array([alpha_post, beta_post])
 
     def compute_posterior_mean(self):
         alpha, beta = self.posterior
