@@ -38,8 +38,6 @@ class BinaryClassificationNode(Node):
         Large values for alpha and beta represent a strong prior and thus put less
         weight on the data. This can be used for regularization.
 
-    posterior : DO NOT SET, ONLY USED BY SUBCLASSES
-
     level : DO NOT SET, ONLY USED BY SUBCLASSES
 
     See also
@@ -60,15 +58,13 @@ class BinaryClassificationNode(Node):
     See `demo_binary_classification.py`.
     """
 
-    def __init__(self, partition_prior, prior, posterior=None, level=0):
-        super().__init__(partition_prior, prior, posterior, level, BinaryClassificationNode, False)
+    def __init__(self, partition_prior, prior, level=0):
+        super().__init__(partition_prior, prior, level, BinaryClassificationNode, False)
         assert len(self.prior) == 2,\
             'Expected a Beta(alpha, beta) prior, i.e., a sequence with two entries, but got {}'.format(prior)
-        assert len(self.posterior) == 2,\
-            'Expected a Beta(alpha, beta) posterior, i.e., a sequence with two entries, but got {}'.format(posterior)
 
     def check_target(self, y):
-        assert y.min() == 0 and y.max() == 1,\
+        assert np.all(np.unique(y) == np.arange(0, 2)), \
             'Expected target values 0..1 but found {}..{}'.format(y.min(), y.max())
 
     def compute_log_p_data_post_no_split(self, y):
@@ -155,8 +151,6 @@ class MultiClassificationNode(Node):
         Large values for alpha_i represent a strong prior and thus put less weight
         on the data. This can be used for regularization.
 
-    posterior : DO NOT SET, ONLY USED BY SUBCLASSES
-
     level : DO NOT SET, ONLY USED BY SUBCLASSES
 
     See also
@@ -177,13 +171,12 @@ class MultiClassificationNode(Node):
     See `demo_multiclass_classification.py`.
     """
 
-    def __init__(self, partition_prior, prior, posterior=None, level=0):
-        super().__init__(partition_prior, prior, posterior, level, MultiClassificationNode, False)
-        assert len(self.prior) == len(self.posterior)
+    def __init__(self, partition_prior, prior, level=0):
+        super().__init__(partition_prior, prior, level, MultiClassificationNode, False)
 
     def check_target(self, y):
         n_classes = len(self.prior)
-        assert y.min() == 0 and y.max() == n_classes - 1,\
+        assert np.all(np.unique(y) == np.arange(0, n_classes)), \
             'Expected target values 0..{} but found {}..{}'.format(n_classes - 1, y.min(), y.max())
 
     def compute_log_p_data_post_no_split(self, y):

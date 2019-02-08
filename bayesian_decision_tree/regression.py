@@ -36,8 +36,6 @@ class RegressionNode(Node):
         It is usually easier to compute these hyperparameters off more intuitive
         base quantities, see examples section.
 
-    posterior : DO NOT SET, ONLY USED BY SUBCLASSES
-
     level : DO NOT SET, ONLY USED BY SUBCLASSES
 
     See also
@@ -77,8 +75,8 @@ class RegressionNode(Node):
     See also `demo_regression.py`.
     """
 
-    def __init__(self, partition_prior, prior, posterior=None, level=0):
-        super().__init__(partition_prior, prior, posterior, level, RegressionNode, True)
+    def __init__(self, partition_prior, prior, level=0):
+        super().__init__(partition_prior, prior, level, RegressionNode, True)
 
     def check_target(self, y):
         pass

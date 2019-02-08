@@ -40,7 +40,6 @@ class RegressionNodeTest(TestCase):
 
         self.assertEqual(root.split_dimension, -1)
         self.assertEqual(root.split_value, None)
-        self.assertEqual(root.split_index, -1)
 
         n = len(y)
         mean = y.mean()

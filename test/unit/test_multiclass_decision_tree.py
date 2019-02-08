@@ -27,7 +27,6 @@ class MultiClassificationNodeTest(TestCase):
 
         self.assertEqual(root.split_dimension, -1)
         self.assertEqual(root.split_value, None)
-        self.assertEqual(root.split_index, -1)
 
         self.assertEqual(root.predict(0.0), 0)
         self.assertEqual(root.predict(0.49), 0)
@@ -81,7 +80,6 @@ class MultiClassificationNodeTest(TestCase):
 
         self.assertEqual(root.split_dimension, 0)
         self.assertEqual(root.split_value, 0.5)
-        self.assertEqual(root.split_index, 2)
 
         self.assertEqual(root.predict(0.0), 0)
         self.assertEqual(root.predict(0.49), 0)
@@ -147,11 +145,9 @@ class MultiClassificationNodeTest(TestCase):
 
         self.assertEqual(root.split_dimension, 0)
         self.assertEqual(root.split_value, 0.5)
-        self.assertEqual(root.split_index, 4)
 
         self.assertEqual(root.child2.split_dimension, 0)
         self.assertEqual(root.child2.split_value, 1.5)
-        self.assertEqual(root.child2.split_index, 3)
 
         self.assertEqual(root.predict(0.0), 0)
         self.assertEqual(root.predict(0.49), 0)
