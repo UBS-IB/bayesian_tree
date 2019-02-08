@@ -10,17 +10,16 @@ class Node(ABC):
     and prediction tasks and outsources the low-level work to the subclasses.
     """
 
-    def __init__(self, partition_prior, prior, posterior, level, child_type, is_regression):
+    def __init__(self, partition_prior, prior, level, child_type, is_regression):
         self.partition_prior = partition_prior
         self.prior = np.array(prior)
-        self.posterior = np.array(posterior) if posterior is not None else np.array(prior)
+        self.posterior = None
         self.level = level
         self.child_type = child_type
         self.is_regression = is_regression
 
         # to be set later
         self.split_dimension = -1
-        self.split_index = -1
         self.split_value = None
         self.split_feature_name = None
         self.child1 = None
@@ -101,6 +100,7 @@ class Node(ABC):
                 best_split_dimension = dim
 
         # did we find a split that has a higher likelihood than the no-split likelihood?
+        self.posterior = self.compute_posterior(y)
         if best_split_index > 0:
             # split data and target to recursively train children
             sort_indices = np.argsort(X[:, best_split_dimension])
@@ -112,27 +112,26 @@ class Node(ABC):
             y2 = y_sorted[best_split_index:]
 
             # compute posteriors of children and priors for further splitting
-            posterior1 = self.compute_posterior(y1)
-            posterior2 = self.compute_posterior(y2)
             prior_child1 = self.compute_posterior(y1, delta)
             prior_child2 = self.compute_posterior(y1, delta)
 
             # store split info, create children and continue training them if there's data left to split
             self.split_dimension = best_split_dimension
-            self.split_index = best_split_index
             self.split_feature_name = feature_names[best_split_dimension] if feature_names is not None else None
             self.split_value = 0.5 * (X_sorted[best_split_index-1, best_split_dimension] + X_sorted[best_split_index, best_split_dimension])
 
-            self.child1 = self.child_type(self.partition_prior, prior_child1, posterior1, self.level+1)
-            self.child2 = self.child_type(self.partition_prior, prior_child2, posterior2, self.level+1)
+            self.child1 = self.child_type(self.partition_prior, prior_child1, self.level+1)
+            self.child2 = self.child_type(self.partition_prior, prior_child2, self.level+1)
 
             if len(X1) > 1:
                 self.child1._fit(X1, y1, delta, verbose, feature_names)
+            else:
+                self.child1.posterior = self.compute_posterior(y1)
+
             if len(X2) > 1:
                 self.child2._fit(X2, y2, delta, verbose, feature_names)
-        else:
-            # no, so this node is a leaf node
-            self.posterior = self.compute_posterior(y)
+            else:
+                self.child2.posterior = self.compute_posterior(y2)
 
     def predict(self, X):
         """Predict class or regression value for X.
@@ -252,7 +251,7 @@ class Node(ABC):
         return depth, leaves
 
     def is_leaf(self):
-        return self.split_index == -1
+        return self.split_value is None
 
     @abstractmethod
     def check_target(self, y):
