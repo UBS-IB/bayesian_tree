@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
+from scipy.sparse import csr_matrix, csc_matrix
 
 
 class Node(ABC):
@@ -31,7 +32,7 @@ class Node(ABC):
 
         Parameters
         ----------
-        X : array-like or pandas.DataFrame, shape = [n_samples, n_features]
+        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix, pandas.DataFrame or pandas.SparseDataFrame, shape = [n_samples, n_features]
             The training input samples.
 
         y : array-like, shape = [n_samples] or [n_samples, n_outputs]
@@ -42,7 +43,7 @@ class Node(ABC):
 
         delta : float, default=0.0
             Determines the strengthening of the prior as the tree grows deeper,
-            see [1].
+            see [1]. Must be a value between 0.0 and 1.0.
 
         verbose : bool, default=False
             Prints fitting progress.
@@ -53,24 +54,31 @@ class Node(ABC):
         .. [1] https://arxiv.org/abs/1901.03214
         """
 
-        feature_names = None
-        if type(X) is pd.DataFrame:
-            feature_names = X.columns
-            X = X.values
+        # validation
+        if self.level == 0:
+            self.check_target(y)
+
+        if delta < 0.0 or delta > 1.0:
+            raise ValueError('Delta must be between 0.0 and 1.0 but was {}.'.format(delta))
+
+        # input transformation
+        X, feature_names = self._extract_data_and_feature_names(X)
 
         if type(y) == list:
             y = np.array(y)
 
         y = y.squeeze()
 
-        if self.level == 0:
-            self.check_target(y)
-
+        # fit
         return self._fit(X, y, delta, verbose, feature_names)
 
     def _fit(self, X, y, delta, verbose, feature_names):
         if verbose:
             print('Training level {} with {:10} data points'.format(self.level, len(y)))
+
+        dense = type(X) == np.ndarray
+        if not dense and type(X) == csr_matrix:
+            X = csc_matrix(X)
 
         # compute data likelihood of not splitting and remember it as the best option so far
         log_p_data_post_best = self.compute_log_p_data_post_no_split(y)
@@ -81,8 +89,12 @@ class Node(ABC):
         best_split_dimension = -1   # dimension of best split
         for dim in range(n_dim):
             X_dim = X[:, dim]
+            if not dense:
+                X_dim = X_dim.toarray().squeeze()
+
             sort_indices = np.argsort(X_dim)
             X_dim_sorted = X_dim[sort_indices]
+
             split_indices = 1 + np.where(np.diff(X_dim_sorted) != 0)[0]  # we can only split between *different* data points
             if len(split_indices) == 0:
                 # no split possible along this dimension
@@ -103,7 +115,14 @@ class Node(ABC):
         self.posterior = self.compute_posterior(y)
         if best_split_index > 0:
             # split data and target to recursively train children
-            sort_indices = np.argsort(X[:, best_split_dimension])
+            X_best_split = X[:, best_split_dimension]
+            if not dense:
+                X_best_split = X_best_split.toarray().squeeze()
+
+            sort_indices = np.argsort(X_best_split)
+            if not dense:
+                X = csr_matrix(X)  # because we are going to extract rows now where CSR is natural
+
             X_sorted = X[sort_indices]
             y_sorted = y[sort_indices]
             X1 = X_sorted[:best_split_index]
@@ -117,18 +136,27 @@ class Node(ABC):
 
             # store split info, create children and continue training them if there's data left to split
             self.split_dimension = best_split_dimension
-            self.split_feature_name = feature_names[best_split_dimension] if feature_names is not None else None
-            self.split_value = 0.5 * (X_sorted[best_split_index-1, best_split_dimension] + X_sorted[best_split_index, best_split_dimension])
+            self.split_feature_name = feature_names[best_split_dimension]
+            if dense:
+                self.split_value = 0.5 * (
+                        X_sorted[best_split_index-1, best_split_dimension]
+                        + X_sorted[best_split_index, best_split_dimension]
+                )
+            else:
+                self.split_value = 0.5 * (
+                        X_sorted[best_split_index-1, :].toarray()[0][best_split_dimension]
+                        + X_sorted[best_split_index, :].toarray()[0][best_split_dimension]
+                )
 
             self.child1 = self.child_type(self.partition_prior, prior_child1, self.level+1)
             self.child2 = self.child_type(self.partition_prior, prior_child2, self.level+1)
 
-            if len(X1) > 1:
+            if X1.shape[0] > 1:
                 self.child1._fit(X1, y1, delta, verbose, feature_names)
             else:
                 self.child1.posterior = self.compute_posterior(y1)
 
-            if len(X2) > 1:
+            if X2.shape[0] > 1:
                 self.child2._fit(X2, y2, delta, verbose, feature_names)
             else:
                 self.child2.posterior = self.compute_posterior(y2)
@@ -142,7 +170,7 @@ class Node(ABC):
 
         Parameters
         ----------
-        X : array-like or pandas.DataFrame, shape = [n_samples, n_features]
+        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix, pandas.DataFrame or pandas.SparseDataFrame, shape = [n_samples, n_features]
             The input samples.
 
         Returns
@@ -151,8 +179,8 @@ class Node(ABC):
             The predicted classes, or the predict values.
         """
 
-        if type(X) is pd.DataFrame:
-            X = X.values
+        # input transformation
+        X, _ = self._extract_data_and_feature_names(X)
 
         if type(X) == list:
             X = np.array(X)
@@ -169,7 +197,7 @@ class Node(ABC):
 
         Parameters
         ----------
-        X : array-like or pandas.DataFrame, shape = [n_samples, n_features]
+        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix, pandas.DataFrame or pandas.SparseDataFrame, shape = [n_samples, n_features]
             The input samples.
 
         Returns
@@ -177,10 +205,36 @@ class Node(ABC):
         p : array of shape = [n_samples, n_classes]
             The class probabilities of the input samples.
         """
-        if type(X) is pd.DataFrame:
-            X = X.values
+
+        # input transformation
+        X, _ = self._extract_data_and_feature_names(X)
 
         return self._predict(X, predict_class=False)
+
+    @staticmethod
+    def _extract_data_and_feature_names(X):
+        if X is None:
+            feature_names = None
+        elif type(X) is pd.DataFrame:
+            feature_names = X.columns
+            X = X.values
+        elif type(X) is pd.SparseDataFrame:
+            # we cannot directly access the sparse underlying data,
+            # but we can convert it to a sparse scipy matrix
+            feature_names = X.columns
+            X = csr_matrix(X.to_coo())
+        else:
+            if type(X) == list:
+                X = np.array(X)
+            elif np.isscalar(X):
+                X = np.array([X])
+
+            if X.ndim == 1:
+                X = np.expand_dims(X, 1)
+
+            feature_names = ['x{}'.format(i) for i in range(X.shape[1])]
+
+        return X, feature_names
 
     def _predict(self, X, predict_class):
         if self.is_regression and not predict_class:
@@ -195,27 +249,30 @@ class Node(ABC):
         else:
             # query children and then re-assemble
 
-            # convert X to a correctly shaped numpy array
-            if np.isscalar(X):
-                X = np.array(X).reshape(-1, 1)
-            elif type(X) is list:
-                X = np.array(X).reshape(-1, 1)
-            elif len(X.shape) == 1:
-                X = X.reshape(-1, 1)
+            dense = type(X) == np.ndarray
+            if not dense and type(X) == csr_matrix:
+                X = csc_matrix(X)
 
             # query both children, let them predict their side, and then re-assemble
-            indices1 = np.where(X[:, self.split_dimension] < self.split_value)[0]
-            indices2 = np.where(X[:, self.split_dimension] >= self.split_value)[0]
+            X_split = X[:, self.split_dimension]
+            if not dense:
+                X_split = X_split.toarray().squeeze()
+
+            indices1 = np.where(X_split < self.split_value)[0]
+            indices2 = np.where(X_split >= self.split_value)[0]
             predictions_merged = None
             if len(indices1) > 0:
-                predictions1 = self.child1._predict(X[indices1], predict_class)
+                X_indices1 = X[indices1]
+                predictions1 = self.child1._predict(X_indices1, predict_class)
                 predictions_merged = self._create_predictions_merged(X, predict_class, predictions1)
                 predictions_merged[indices1] = predictions1
 
             if len(indices2) > 0:
-                predictions2 = self.child2._predict(X[indices2], predict_class)
+                X_indices2 = X[indices2]
+                predictions2 = self.child2._predict(X_indices2, predict_class)
                 if predictions_merged is None:
                     predictions_merged = self._create_predictions_merged(X, predict_class, predictions2)
+
                 predictions_merged[indices2] = predictions2
 
             return predictions_merged
@@ -224,7 +281,7 @@ class Node(ABC):
     def _create_predictions_merged(X, predict_class, predictions_child):
         # class predictions: 1D array
         # probability predictions: 2D array
-        len_X = len(X) if type(X) == np.ndarray else 1
+        len_X = 1 if X is None or np.isscalar(X) else X.shape[0]
         return np.zeros(len_X) if predict_class else np.zeros((len_X, predictions_child.shape[1]))
 
     def depth_and_leaves(self):
@@ -294,7 +351,7 @@ class Node(ABC):
             if not self.is_regression:
                 s += ', p(y)={}'.format(self.predict_proba(parent_split_value)[0])
         else:
-            split_feature_name = self.split_feature_name if self.split_feature_name is not None else 'x{}'.format(self.split_dimension)
+            split_feature_name = self.split_feature_name
             s += '{}={}'.format(split_feature_name, self.split_value)
 
             s += '\n'

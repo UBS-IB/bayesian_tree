@@ -27,3 +27,7 @@ from bayesian_decision_tree.classification import MultiClassificationNode
 from bayesian_decision_tree.regression import RegressionNode
 ```
 followed by instantiating the node with appropriate parameters and then calling `fit(X, y)` on it.
+
+## TODO
+- Add parallelization option (dask)
+- Add optional pruning in the classification case (i.e., eliminate leaf siblings with identical class prediction)
