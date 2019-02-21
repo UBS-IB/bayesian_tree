@@ -64,7 +64,7 @@ class Node(ABC):
         # input transformation
         X, feature_names = self._extract_data_and_feature_names(X)
 
-        if type(y) == list:
+        if isinstance(y, list):
             y = np.array(y)
 
         y = y.squeeze()
@@ -76,8 +76,8 @@ class Node(ABC):
         if verbose:
             print('Training level {} with {:10} data points'.format(self.level, len(y)))
 
-        dense = type(X) == np.ndarray
-        if not dense and type(X) == csr_matrix:
+        dense = isinstance(X, np.ndarray)
+        if not dense and isinstance(X, csr_matrix):
             X = csc_matrix(X)
 
         # compute data likelihood of not splitting and remember it as the best option so far
@@ -182,11 +182,8 @@ class Node(ABC):
         # input transformation
         X, _ = self._extract_data_and_feature_names(X)
 
-        if type(X) == list:
-            X = np.array(X)
-
         prediction = self._predict(X, predict_class=True)
-        if type(prediction) != np.ndarray:
+        if not isinstance(prediction, np.ndarray):
             # if the tree consists of a single leaf only then we have to cast that single float back to an array
             prediction = self._create_predictions_merged(X, True, prediction)
 
@@ -215,16 +212,16 @@ class Node(ABC):
     def _extract_data_and_feature_names(X):
         if X is None:
             feature_names = None
-        elif type(X) is pd.DataFrame:
+        elif isinstance(X, pd.DataFrame):
             feature_names = X.columns
             X = X.values
-        elif type(X) is pd.SparseDataFrame:
+        elif isinstance(X, pd.SparseDataFrame):
             # we cannot directly access the sparse underlying data,
             # but we can convert it to a sparse scipy matrix
             feature_names = X.columns
-            X = csr_matrix(X.to_coo())
+            X = csc_matrix(X.to_coo())
         else:
-            if type(X) == list:
+            if isinstance(X, list):
                 X = np.array(X)
             elif np.isscalar(X):
                 X = np.array([X])
@@ -249,8 +246,8 @@ class Node(ABC):
         else:
             # query children and then re-assemble
 
-            dense = type(X) == np.ndarray
-            if not dense and type(X) == csr_matrix:
+            dense = isinstance(X, np.ndarray)
+            if not dense and isinstance(X, csr_matrix):
                 X = csc_matrix(X)
 
             # query both children, let them predict their side, and then re-assemble
