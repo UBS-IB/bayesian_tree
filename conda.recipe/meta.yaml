@@ -1,0 +1,50 @@
+
+{% set data = load_setup_py_data() %}
+
+package:
+  name: bayesian_decision_tree
+  
+  version: {{ data['version'] }}
+
+source:
+  path: ..
+
+build:
+  # If the installation is complex, or different between Unix and Windows, use
+  # separate bld.bat and build.sh files instead of this key.  Add the line
+  # "skip: True  # [py<35]" (for example) to limit to Python 3.5 and newer, or
+  # "skip: True  # [not win]" to limit to Windows.
+  script: python setup.py install --single-version-externally-managed --record=record.txt
+  # if not platform dependent uncomment
+  # uncomment for entry points to be generated
+  # entry_points:
+  #   - hadoop_utils = hadoop_utils.cli:cli
+
+requirements:
+  build:
+    - python
+    - setuptools
+  run:
+    - python
+    - matplotlib 
+    - scipy 
+    - numpy 
+    - pandas 
+    - requests
+    - scikit-learn
+
+test:
+  source_files:
+    - tests
+  requires:
+    - pytest
+    - pytest-cov
+    - pytest-flake8
+      #    - pytest-mypy
+    - teamcity-messages
+  commands:
+    - pytest 
+
+about:
+  home: https://github.com/AA42557-QUAD-DS/hadoop-utils
+  summary: Short description
