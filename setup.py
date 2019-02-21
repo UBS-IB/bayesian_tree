@@ -37,7 +37,7 @@ requirements = [
 
 setup(
     name='bayesian-decision-tree',
-    version='0.1.0',
+    version='versioneer.get_version()',
     description='An implementation of the paper: A Bayesian Tree Algorithm by Nuti et al.',
     long_description=long_description,
     long_description_content_type="text/markdown",
