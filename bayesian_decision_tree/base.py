@@ -132,7 +132,7 @@ class Node(ABC):
 
             # compute posteriors of children and priors for further splitting
             prior_child1 = self.compute_posterior(y1, delta)
-            prior_child2 = self.compute_posterior(y1, delta)
+            prior_child2 = self.compute_posterior(y2, delta)
 
             # store split info, create children and continue training them if there's data left to split
             self.split_dimension = best_split_dimension
