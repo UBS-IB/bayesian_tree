@@ -2,11 +2,139 @@
 A collection of publicly available data sets to test classification algorithms on and some helper
 functions for plotting.
 """
+import argparse
+
+import io
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import requests
 from matplotlib import patches
 from matplotlib.pyplot import cm
+from sklearn.preprocessing import LabelBinarizer
+
+
+def parse_args():
+    """Parse input arguments from the command line
+    :return: the result from the ArgumentParser
+    """
+    parser = argparse.ArgumentParser(
+        description="Run demo of binary classification")
+
+    parser.add_argument(
+        '--http_proxy',
+        action='store',
+        required=False,
+        help='HTTP Proxy',
+        default=None)
+
+    parser.add_argument(
+        '--https_proxy',
+        action='store', required=False,
+        help='HTTPS Proxy',
+        default=None)
+
+    return parser.parse_args()
+
+
+def one_hot_encode(data, columns):
+    columns = sorted(set(columns))[::-1]
+
+    def ensure_matrix(x):
+        return x if x.ndim == 2 else np.array(x).reshape(-1, 1)
+
+    for c in columns:
+        one_hot = LabelBinarizer().fit_transform(data[:, c])
+        data = np.hstack((
+            ensure_matrix(data[:, :c]),
+            ensure_matrix(one_hot),
+            ensure_matrix(data[:, c+1:])
+        ))
+
+    return data
+
+
+def load_credit(proxies):
+    content = requests.get(
+        'https://archive.ics.uci.edu/ml/machine-learning-databases/00350/default%20of%20credit%20card%20clients.xls',
+        proxies=proxies).content
+    df = pd.read_excel(io.BytesIO(content))
+    train = df.iloc[1:, 1:].values.astype(np.float64)
+    train = one_hot_encode(train, [2, 3])  # one-hot encode categorical features
+    test = train
+    return train, test
+
+
+def load_dermatology(proxies):
+    # Dermatology
+    text = requests.get('https://archive.ics.uci.edu/ml/machine-learning-databases/dermatology/dermatology.data', proxies=proxies).text
+    text = text.replace('?', '-1')
+    lines = text.split('\n')
+    train = np.vstack([np.fromstring(lines[i], sep=',') for i in range(len(lines)-1)])
+    age = train[:, 33]
+    has_age = age != -1.0
+    train = np.hstack((
+        train[:, :33],
+        (has_age * 1).reshape(-1, 1),    # age yes/no feature
+        (age * has_age).reshape(-1, 1),  # set age to 0 if missing
+        train[:, 34].reshape(-1, 1)-1,
+    ))
+    # train[:, -1] -= 1
+    test = train
+    return train, test
+
+
+def load_diabetic(proxies):
+    # Diabetic Retinopathy
+    text = requests.get('https://archive.ics.uci.edu/ml/machine-learning-databases/00329/messidor_features.arff', proxies=proxies).text
+    text = text[text.index('@data'):]
+    lines = text.split('\n')[1:]
+    train = np.vstack([np.fromstring(lines[i], sep=',') for i in range(len(lines)-1)])
+    test = train
+    return train, test
+
+
+def load_eeg(proxies):
+    # load EEG eye data
+    text = requests.get('https://archive.ics.uci.edu/ml/machine-learning-databases/00264/EEG%20Eye%20State.arff', proxies=proxies).text
+    text = text[text.index('@DATA'):]
+    lines = text.split('\n')[1:]
+    train = np.vstack([np.fromstring(lines[i], sep=',') for i in range(len(lines)-1)])
+    test = train
+    return train, test
+
+
+def load_gamma(proxies):
+    # load Gamma data
+    text = requests.get('https://archive.ics.uci.edu/ml/machine-learning-databases/magic/magic04.data', proxies=proxies).text
+    text = text.replace('g', '0').replace('h', '1')
+    lines = text.split('\n')
+    train = np.vstack([np.fromstring(lines[i], sep=',') for i in range(len(lines)-1)])
+    test = train
+    return train, test
+
+
+def load_haberman(proxies):
+    # load Haberman's dataset
+    text = requests.get(
+        'https://archive.ics.uci.edu/ml/machine-learning-databases/haberman/haberman.data',
+        proxies=proxies).text
+    lines = text.split('\n')
+    train = np.vstack([np.fromstring(lines[i], sep=',') for i in range(len(lines)-1)])
+    train[:, -1] -= 1
+    test = train
+    return train, test
+
+
+def load_heart(proxies):
+    text = requests.get(
+        'https://archive.ics.uci.edu/ml/machine-learning-databases/statlog/heart/heart.dat', proxies=proxies).text
+    lines = text.split('\n')
+    train = np.vstack([np.fromstring(lines[i], sep=' ') for i in range(len(lines)-1)])
+    train = one_hot_encode(train, [2, 6, 12])  # one-hot encode categorical features
+    train[:, -1] -= 1
+    test = train
+    return train, test
 
 
 def load_ripley(proxies):
@@ -14,49 +142,19 @@ def load_ripley(proxies):
     def parse_ripley(text):
         lines = text.split('\n')[1:]
         return np.vstack([np.fromstring(lines[i], sep=' ') for i in range(len(lines)-1)])
-    train = parse_ripley(requests.get('http://www.stats.ox.ac.uk/pub/PRNN/synth.tr', proxies=proxies).text)
-    test = parse_ripley(requests.get('http://www.stats.ox.ac.uk/pub/PRNN/synth.te', proxies=proxies).text)
-    return train, test
-
-
-def load_haberman(proxies):
-    # load Haberman's dataset
-    def parse_haberman(text):
-        lines = text.split('\n')
-        data = np.vstack([np.fromstring(lines[i], sep=',') for i in range(len(lines)-1)])
-        data[:, -1] -= 1
-        return data
-    train = parse_haberman(requests.get(
-        'https://archive.ics.uci.edu/ml/machine-learning-databases/haberman/haberman.data',
-        proxies=proxies).text)
-    test = train
+    train = parse_ripley(requests.get('https://www.stats.ox.ac.uk/pub/PRNN/synth.tr', proxies=proxies).text)
+    test = parse_ripley(requests.get('https://www.stats.ox.ac.uk/pub/PRNN/synth.te', proxies=proxies).text)
     return train, test
 
 
 def load_seismic(proxies):
     # load seismic bumps dataset
-    def parse_seismic(text):
-        text = text[text.index('@data'):]
-        text = text.replace('a', '0').replace('b', '1').replace('c', '2').replace('d', '3')
-        text = text.replace('N', '0').replace('W', '1')
-        lines = text.split('\n')[1:]
-        return np.vstack([np.fromstring(lines[i], sep=',') for i in range(len(lines)-1)])
-    train = parse_seismic(requests.get(
-        'https://archive.ics.uci.edu/ml/machine-learning-databases/00266/seismic-bumps.arff',
-        proxies=proxies).text)
-    test = train
-    return train, test
-
-
-def load_gamma(proxies):
-    # load Gamma data
-    def parse_gamma(text):
-        text = text.replace('g', '0').replace('h', '1')
-        lines = text.split('\n')
-        return np.vstack([np.fromstring(lines[i], sep=',') for i in range(len(lines)-1)])
-    train = parse_gamma(requests.get(
-        'https://archive.ics.uci.edu/ml/machine-learning-databases/magic/magic04.data',
-        proxies=proxies).text)
+    text = requests.get('https://archive.ics.uci.edu/ml/machine-learning-databases/00266/seismic-bumps.arff', proxies=proxies).text
+    text = text[text.index('@data'):]
+    text = text.replace('a', '0').replace('b', '1').replace('c', '2').replace('d', '3')
+    text = text.replace('N', '0').replace('W', '1')
+    lines = text.split('\n')[1:]
+    train = np.vstack([np.fromstring(lines[i], sep=',') for i in range(len(lines)-1)])
     test = train
     return train, test
 
@@ -85,7 +183,7 @@ def plot_1d(root, X_train, y_train, info_train, X_test, y_test, info_test):
 def plot_2d(root, X_train, y_train, info_train, X_test, y_test, info_test):
     plt.figure(figsize=[10, 16], dpi=75)
 
-    n_classes = int(y_train.max()+1)
+    n_classes = int(y_train.max()) + 1
     colormap = cm.gist_rainbow
 
     def plot(X, y, info):

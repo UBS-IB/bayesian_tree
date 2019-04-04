@@ -1,18 +1,17 @@
-import numpy as np
+from sklearn.metrics import accuracy_score
 
-from bayesian_decision_tree.classification import MultiClassificationNode
-from examples.helper import plot_1d, plot_2d
+from bayesian_decision_tree.classification import PerpendicularClassificationNode
+from examples.helper import *
 
-# demo script for multi-class classification
+# demo script for classification (binary or multi-class)
 if __name__ == '__main__':
-    # binary classification: Beta prior
-    prior = (1, 1, 1, 1)
+    args = parse_args()
+    proxies = {
+        'http': args.http_proxy,
+        'https': args.https_proxy
+    }
 
-    # Bayesian decision tree parameters
-    partition_prior = 0.9
-    delta = 0
-
-    root = MultiClassificationNode(partition_prior, prior)
+    # choose a training set: uncomment one of the following sections
 
     # training/test data: artificial 4-class data somewhat similar to the Ripley data
     n_train = 500
@@ -21,9 +20,9 @@ if __name__ == '__main__':
     x1 = [1, 1, 3, 3]
     sd = 0.7
     X_train = np.zeros((n_train, 2))
-    y_train = np.zeros(n_train)
+    y_train = np.zeros((n_train, 1))
     X_test = np.zeros((n_test, 2))
-    y_test = np.zeros(n_test)
+    y_test = np.zeros((n_test, 1))
     np.random.seed(666)
     for i in range(4):
         X_train[i * n_train//4:(i + 1) * n_train//4, 0] = np.random.normal(x0[i], sd, n_train//4)
@@ -33,6 +32,32 @@ if __name__ == '__main__':
         X_test[i * n_test//4:(i + 1) * n_test//4, 0] = np.random.normal(x0[i], sd, n_test//4)
         X_test[i * n_test//4:(i + 1) * n_test//4, 1] = np.random.normal(x1[i], sd, n_test//4)
         y_test[i * n_test//4:(i + 1) * n_test//4] = i
+    train = np.hstack((X_train, y_train))
+    test = np.hstack((X_test, y_test))
+
+    # or you can call any of the load_* methods in helper to get a subset of the UCI datasets
+    # train, test = load_ripley(proxies)
+
+    # perform a 50:50 train:test split
+    if train is test:
+        train = train[0::2]
+        test = test[1::2]
+
+    X_train = train[:, :-1]
+    y_train = train[:, -1]
+    X_test = test[:, :-1]
+    y_test = test[:, -1]
+
+    # prior
+    prior_pseudo_observations = 1
+    prior = prior_pseudo_observations * np.ones(len(x0))
+
+    # Bayesian decision tree parameters
+    partition_prior = 0.9
+    delta = 0
+
+    # model
+    root = PerpendicularClassificationNode(partition_prior, prior)
 
     # train
     root.fit(X_train, y_train, delta)
@@ -41,10 +66,10 @@ if __name__ == '__main__':
     print('Tree depth and number of leaves:', root.depth_and_leaves())
 
     # compute accuracy
-    prediction_train = root.predict(X_train)
-    prediction_test = root.predict(X_test)
-    accuracy_train = (prediction_train == y_train).mean()
-    accuracy_test = (prediction_test == y_test).mean()
+    y_pred_train = root.predict(X_train)
+    y_pred_test = root.predict(X_test)
+    accuracy_train = accuracy_score(y_train, y_pred_train)
+    accuracy_test = accuracy_score(y_test, y_pred_test)
     info_train = 'Train accuracy: {:.4f} %'.format(100 * accuracy_train)
     info_test = 'Test accuracy:  {:.4f} %'.format(100 * accuracy_test)
     print(info_train)

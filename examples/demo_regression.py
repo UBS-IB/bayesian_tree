@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.metrics import mean_squared_error
 
-from bayesian_decision_tree.regression import RegressionNode
+from bayesian_decision_tree.regression import PerpendicularRegressionNode
 from examples.helper import plot_1d, plot_2d
 
 # demo script for regression
@@ -12,7 +12,7 @@ if __name__ == '__main__':
     X_test = X_train
     y_test = y_train
 
-    # regression: Normal-Gamma prior, see https://en.wikipedia.org/wiki/Conjugate_prior#Continuous_distributions
+    # prior for regression: Normal-Gamma prior, see https://en.wikipedia.org/wiki/Conjugate_prior#Continuous_distributions
     mu = y_train.mean()
     sd_prior = y_train.std() / 10
     prior_obs = 1
@@ -21,14 +21,14 @@ if __name__ == '__main__':
     var_prior = sd_prior**2
     tau_prior = 1/var_prior
     beta = alpha/tau_prior
-
-    prior = (mu, kappa, alpha, beta)
+    prior = np.array([mu, kappa, alpha, beta])
 
     # Bayesian decision tree parameters
     partition_prior = 0.9
     delta = 0
 
-    root = RegressionNode(partition_prior, prior)
+    # model
+    root = PerpendicularRegressionNode(partition_prior, prior)
 
     # train
     root.fit(X_train, y_train, delta)

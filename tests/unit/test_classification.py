@@ -5,11 +5,11 @@ import pandas as pd
 from numpy.testing import assert_array_equal, assert_array_almost_equal
 from scipy.sparse import csc_matrix, csr_matrix
 
-from bayesian_decision_tree.classification import BinaryClassificationNode
+from bayesian_decision_tree.classification import PerpendicularClassificationNode
 from tests.unit.helper import data_matrix_transforms
 
 
-class BinaryClassificationNodeTest(TestCase):
+class ClassificationNodeTest(TestCase):
     def test_one_partition(self):
         for data_matrix_transform in data_matrix_transforms:
             Xy = np.array([
@@ -24,7 +24,7 @@ class BinaryClassificationNodeTest(TestCase):
 
             X = data_matrix_transform(X)
 
-            root = BinaryClassificationNode(0.5, (1, 1))
+            root = PerpendicularClassificationNode(0.5, np.array([1, 1]))
             root.fit(X, y)
             print(root)
 
@@ -79,7 +79,7 @@ class BinaryClassificationNodeTest(TestCase):
 
             X = data_matrix_transform(X)
 
-            root = BinaryClassificationNode(0.5, (1, 1))
+            root = PerpendicularClassificationNode(0.5, np.array([1, 1]))
             root.fit(X, y)
             print(root)
 
@@ -146,7 +146,7 @@ class BinaryClassificationNodeTest(TestCase):
 
             X = data_matrix_transform(X)
 
-            root = BinaryClassificationNode(0.9, (1, 1))
+            root = PerpendicularClassificationNode(0.9, np.array([1, 1]))
             root.fit(X, y)
             print(root)
 
@@ -187,8 +187,8 @@ class BinaryClassificationNodeTest(TestCase):
 
             assert_array_equal(root.predict(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
             assert_array_equal(root.predict(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.49], [1.51], [100]]).to_sparse()), expected)
-            assert_array_equal(root.predict(csr_matrix([[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
             assert_array_equal(root.predict(csc_matrix([[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
+            assert_array_equal(root.predict(csr_matrix([[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
 
             expected = np.array([[(1+4)/6, 1/6], [(1+4)/6, 1/6], [1/5, (1+3)/5], [1/5, (1+3)/5], [(1+4)/6, 1/6], [(1+4)/6, 1/6]])
             assert_array_almost_equal(root.predict_proba(0.0), np.expand_dims(expected[0], 0))
@@ -196,10 +196,9 @@ class BinaryClassificationNodeTest(TestCase):
             assert_array_almost_equal(root.predict_proba(0.51), np.expand_dims(expected[2], 0))
             assert_array_almost_equal(root.predict_proba(1.49), np.expand_dims(expected[3], 0))
             assert_array_almost_equal(root.predict_proba(1.51), np.expand_dims(expected[4], 0))
-            assert_array_almost_equal(root.predict_proba(100), np.expand_dims(expected[4], 0))
+            assert_array_almost_equal(root.predict_proba(100), np.expand_dims(expected[5], 0))
             assert_array_almost_equal(root.predict_proba(np.array([0.0, 0.49, 0.51, 1.49, 1.51, 100])), expected)
             assert_array_almost_equal(root.predict_proba(np.array([[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
-            assert_array_almost_equal(root.predict_proba(csc_matrix([[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
 
             assert_array_almost_equal(root.predict_proba(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
             assert_array_almost_equal(root.predict_proba(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.49], [1.51], [100]]).to_sparse()), expected)

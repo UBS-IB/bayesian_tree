@@ -3,23 +3,27 @@ from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix, csc_matrix
+from sklearn.base import BaseEstimator, ClassifierMixin
 
 
-class Node(ABC):
+class BaseNode(ABC, BaseEstimator):
     """
     The base class for all Bayesian decision tree algorithms (classification and regression). Performs all the high-level fitting
     and prediction tasks and outsources the low-level work to the subclasses.
     """
 
-    def __init__(self, partition_prior, prior, level, child_type, is_regression):
+    def __init__(self, partition_prior, prior, child_type, is_regression, level):
+        if not isinstance(prior, np.ndarray):
+            raise TypeError('\'prior\' must be a numpy array')
+
         self.partition_prior = partition_prior
-        self.prior = np.array(prior)
-        self.posterior = None
-        self.level = level
+        self.prior = prior
         self.child_type = child_type
         self.is_regression = is_regression
+        self.level = level
 
         # to be set later
+        self.posterior = None
         self.split_dimension = -1
         self.split_value = None
         self.split_feature_name = None
@@ -72,95 +76,6 @@ class Node(ABC):
         # fit
         return self._fit(X, y, delta, verbose, feature_names)
 
-    def _fit(self, X, y, delta, verbose, feature_names):
-        if verbose:
-            print('Training level {} with {:10} data points'.format(self.level, len(y)))
-
-        dense = isinstance(X, np.ndarray)
-        if not dense and isinstance(X, csr_matrix):
-            X = csc_matrix(X)
-
-        # compute data likelihood of not splitting and remember it as the best option so far
-        log_p_data_post_best = self.compute_log_p_data_post_no_split(y)
-
-        # compute data likelihoods of all possible splits along all data dimensions
-        n_dim = X.shape[1]
-        best_split_index = -1       # index of best split
-        best_split_dimension = -1   # dimension of best split
-        for dim in range(n_dim):
-            X_dim = X[:, dim]
-            if not dense:
-                X_dim = X_dim.toarray().squeeze()
-
-            sort_indices = np.argsort(X_dim)
-            X_dim_sorted = X_dim[sort_indices]
-
-            split_indices = 1 + np.where(np.diff(X_dim_sorted) != 0)[0]  # we can only split between *different* data points
-            if len(split_indices) == 0:
-                # no split possible along this dimension
-                continue
-
-            y_sorted = y[sort_indices]
-
-            # compute data likelihoods of all possible splits along this dimension and find split with highest data likelihood
-            log_p_data_post_split = self.compute_log_p_data_post_split(y_sorted, split_indices, n_dim)
-            i_max = log_p_data_post_split.argmax()
-            if log_p_data_post_split[i_max] > log_p_data_post_best:
-                # remember new best split
-                log_p_data_post_best = log_p_data_post_split[i_max]
-                best_split_index = split_indices[i_max]  # data index of best split
-                best_split_dimension = dim
-
-        # did we find a split that has a higher likelihood than the no-split likelihood?
-        self.posterior = self.compute_posterior(y)
-        if best_split_index > 0:
-            # split data and target to recursively train children
-            X_best_split = X[:, best_split_dimension]
-            if not dense:
-                X_best_split = X_best_split.toarray().squeeze()
-
-            sort_indices = np.argsort(X_best_split)
-            if not dense:
-                X = csr_matrix(X)  # because we are going to extract rows now where CSR is natural
-
-            X_sorted = X[sort_indices]
-            y_sorted = y[sort_indices]
-            X1 = X_sorted[:best_split_index]
-            X2 = X_sorted[best_split_index:]
-            y1 = y_sorted[:best_split_index]
-            y2 = y_sorted[best_split_index:]
-
-            # compute posteriors of children and priors for further splitting
-            prior_child1 = self.compute_posterior(y1, delta)
-            prior_child2 = self.compute_posterior(y2, delta)
-
-            # store split info, create children and continue training them if there's data left to split
-            self.split_dimension = best_split_dimension
-            self.split_feature_name = feature_names[best_split_dimension]
-            if dense:
-                self.split_value = 0.5 * (
-                        X_sorted[best_split_index-1, best_split_dimension]
-                        + X_sorted[best_split_index, best_split_dimension]
-                )
-            else:
-                self.split_value = 0.5 * (
-                        X_sorted[best_split_index-1, :].toarray()[0][best_split_dimension]
-                        + X_sorted[best_split_index, :].toarray()[0][best_split_dimension]
-                )
-
-            self.child1 = self.child_type(self.partition_prior, prior_child1, self.level+1)
-            self.child2 = self.child_type(self.partition_prior, prior_child2, self.level+1)
-
-            if X1.shape[0] > 1:
-                self.child1._fit(X1, y1, delta, verbose, feature_names)
-            else:
-                self.child1.posterior = self.compute_posterior(y1)
-
-            if X2.shape[0] > 1:
-                self.child2._fit(X2, y2, delta, verbose, feature_names)
-            else:
-                self.child2.posterior = self.compute_posterior(y2)
-
     def predict(self, X):
         """Predict class or regression value for X.
 
@@ -185,7 +100,7 @@ class Node(ABC):
         prediction = self._predict(X, predict_class=True)
         if not isinstance(prediction, np.ndarray):
             # if the tree consists of a single leaf only then we have to cast that single float back to an array
-            prediction = self._create_predictions_merged(X, True, prediction)
+            prediction = self._create_merged_predictions_array(X, True, prediction)
 
         return prediction
 
@@ -203,10 +118,51 @@ class Node(ABC):
             The class probabilities of the input samples.
         """
 
+        if self.is_regression:
+            raise ValueError('Cannot predict probabilities for regression trees')
+
         # input transformation
         X, _ = self._extract_data_and_feature_names(X)
 
         return self._predict(X, predict_class=False)
+
+    def _predict(self, X, predict_class):
+        if self.is_leaf():
+            prediction = self._predict_leaf() if predict_class else self.compute_posterior_mean().reshape(1, -1)
+            predictions = self._create_merged_predictions_array(X, predict_class, prediction)
+            predictions[:] = prediction
+            return predictions
+        else:
+            # query children and then re-assemble
+
+            dense = isinstance(X, np.ndarray)
+            if not dense and isinstance(X, csr_matrix):
+                X = csc_matrix(X)
+
+            # query both children, let them predict their side, and then re-assemble
+            indices1, indices2 = self.compute_child1_and_child2_indices(X, dense)
+
+            predictions_merged = None
+
+            if len(indices1) > 0:
+                X1 = X[indices1]
+                predictions1 = self.child1._predict(X1, predict_class)
+                predictions_merged = self._create_merged_predictions_array(X, predict_class, predictions1)
+                predictions_merged[indices1] = predictions1
+
+            if len(indices2) > 0:
+                X2 = X[indices2]
+                predictions2 = self.child2._predict(X2, predict_class)
+                if predictions_merged is None:
+                    predictions_merged = self._create_merged_predictions_array(X, predict_class, predictions2)
+
+                predictions_merged[indices2] = predictions2
+
+            return predictions_merged
+
+    @abstractmethod
+    def compute_child1_and_child2_indices(self, X, dense):
+        pass
 
     @staticmethod
     def _extract_data_and_feature_names(X):
@@ -233,49 +189,8 @@ class Node(ABC):
 
         return X, feature_names
 
-    def _predict(self, X, predict_class):
-        if self.is_regression and not predict_class:
-            # probability prediction for regressions makes no sense
-            raise ValueError('Cannot predict probabilities for regression trees')
-
-        if self.is_leaf():
-            prediction = self._predict_leaf() if predict_class else self.compute_posterior_mean().reshape(1, -1)
-            predictions = self._create_predictions_merged(X, predict_class, prediction)
-            predictions[:] = prediction
-            return predictions
-        else:
-            # query children and then re-assemble
-
-            dense = isinstance(X, np.ndarray)
-            if not dense and isinstance(X, csr_matrix):
-                X = csc_matrix(X)
-
-            # query both children, let them predict their side, and then re-assemble
-            X_split = X[:, self.split_dimension]
-            if not dense:
-                X_split = X_split.toarray().squeeze()
-
-            indices1 = np.where(X_split < self.split_value)[0]
-            indices2 = np.where(X_split >= self.split_value)[0]
-            predictions_merged = None
-            if len(indices1) > 0:
-                X_indices1 = X[indices1]
-                predictions1 = self.child1._predict(X_indices1, predict_class)
-                predictions_merged = self._create_predictions_merged(X, predict_class, predictions1)
-                predictions_merged[indices1] = predictions1
-
-            if len(indices2) > 0:
-                X_indices2 = X[indices2]
-                predictions2 = self.child2._predict(X_indices2, predict_class)
-                if predictions_merged is None:
-                    predictions_merged = self._create_predictions_merged(X, predict_class, predictions2)
-
-                predictions_merged[indices2] = predictions2
-
-            return predictions_merged
-
     @staticmethod
-    def _create_predictions_merged(X, predict_class, predictions_child):
+    def _create_merged_predictions_array(X, predict_class, predictions_child):
         # class predictions: 1D array
         # probability predictions: 2D array
         len_X = 1 if X is None or np.isscalar(X) else X.shape[0]
@@ -304,32 +219,41 @@ class Node(ABC):
 
         return depth, leaves
 
+    def _check_classification_target(self, y):
+        n_classes = len(self.prior)
+        assert np.all(np.unique(y) == np.arange(0, n_classes)), \
+            'Expected target values 0..{} but found {}..{}'.format(n_classes - 1, y.min(), y.max())
+
+    # @abstractmethod
+    # def check_target(self, y):
+    #     pass
+    #
+    # @abstractmethod
+    # def compute_log_p_data_post_no_split(self, y):
+    #     pass
+    #
+    # @abstractmethod
+    # def compute_log_p_data_post_split(self, y, split_indices, n_dim):
+    #     pass
+    #
+    # @abstractmethod
+    # def compute_posterior(self, y, delta=1):
+    #     pass
+    #
+    # @abstractmethod
+    # def compute_posterior_mean(self):
+    #     pass
+    #
+    # @abstractmethod
+    # def _predict_leaf(self):
+    #     pass
+    #
+    # @abstractmethod
+    # def _fit(self, X, y, delta, verbose, feature_names):
+    #     pass
+
     def is_leaf(self):
         return self.split_value is None
-
-    @abstractmethod
-    def check_target(self, y):
-        pass
-
-    @abstractmethod
-    def compute_log_p_data_post_no_split(self, y):
-        pass
-
-    @abstractmethod
-    def compute_log_p_data_post_split(self, y, split_indices, n_dim):
-        pass
-
-    @abstractmethod
-    def compute_posterior(self, y, delta=1):
-        pass
-
-    @abstractmethod
-    def compute_posterior_mean(self):
-        pass
-
-    @abstractmethod
-    def _predict_leaf(self):
-        pass
 
     def __str__(self):
         return self._str([], self.split_value, None)

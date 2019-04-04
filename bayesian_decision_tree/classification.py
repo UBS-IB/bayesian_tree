@@ -1,133 +1,21 @@
 """
 This module declares the Bayesian classification tree algorithms:
 
-* BinaryClassificationNode
-* MultiClassificationNode
+* ClassificationNode
 """
-import numpy as np
-from scipy.special import betaln
+from abc import ABC
 
-from bayesian_decision_tree.base import Node
+import numpy as np
+
+from bayesian_decision_tree.base_hyperplane import BaseHyperplaneNode
+from bayesian_decision_tree.base_perpendicular import BasePerpendicularNode
 from bayesian_decision_tree.utils import multivariate_betaln
 
 
-class BinaryClassificationNode(Node):
+class BaseClassificationNode(ABC):
     """
-    Bayesian binary classification tree. Uses a beta prior.
-
-    Parameters
-    ----------
-    partition_prior : float, must be > 0.0 and < 1.0, typical value: 0.9
-        The prior probability of splitting a node's data into two children.
-
-        Small values tend to reduce the tree depth, leading to less expressiveness
-        but also to less overfitting.
-
-        Large values tend to increase the tree depth and thus lead to the tree
-        better fitting the data, which can lead to overfitting.
-
-    prior : array_like, shape = [2]
-        The prior hyperparameters [alpha, beta] for the beta conjugate prior, see
-        [1] and [2]. Both alpha and beta must be positive, where alpha represents
-        the number of prior pseudo-observations of class 0 and where beta represents
-        the number of prior pseudo-observations of class 1.
-
-        Small values for alpha and beta represent a weak prior which leads to the
-        training data dominating the posterior. This can lead to overfitting.
-
-        Large values for alpha and beta represent a strong prior and thus put less
-        weight on the data. This can be used for regularization.
-
-    level : DO NOT SET, ONLY USED BY SUBCLASSES
-
-    See also
-    --------
-    demo_binary_classification.py
-    MultiClassificationNode
-    RegressionNode
-
-    References
-    ----------
-
-    .. [1] https://en.wikipedia.org/wiki/Beta_distribution#Bayesian_inference
-
-    .. [2] https://en.wikipedia.org/wiki/Conjugate_prior#Discrete_distributions
-
-    Examples
-    --------
-    See `demo_binary_classification.py`.
-    """
-
-    def __init__(self, partition_prior, prior, level=0):
-        super().__init__(partition_prior, prior, level, BinaryClassificationNode, False)
-        assert len(self.prior) == 2,\
-            'Expected a Beta(alpha, beta) prior, i.e., a sequence with two entries, but got {}'.format(prior)
-
-    def check_target(self, y):
-        assert np.all(np.unique(y) == np.arange(0, 2)), \
-            'Expected target values 0..1 but found {}..{}'.format(y.min(), y.max())
-
-    def compute_log_p_data_post_no_split(self, y):
-        alpha, beta = self.prior
-        alpha_post, beta_post = self.compute_posterior(y)
-
-        betaln_prior = betaln(alpha, beta)
-        log_p_prior = np.log(1-self.partition_prior**(1+self.level))
-        log_p_data = betaln(alpha_post, beta_post) - betaln_prior
-
-        return log_p_prior + log_p_data
-
-    def compute_log_p_data_post_split(self, y, split_indices, n_dim):
-        n = len(y)
-        n_splits = len(split_indices)
-
-        n1 = split_indices
-        n2 = n - n1
-        k1 = y.cumsum()[split_indices - 1]
-        k2 = y.sum() - k1
-
-        alpha, beta = self.prior
-
-        betaln_prior = betaln(alpha, beta)
-        log_p_prior = np.log(self.partition_prior**(1+self.level) / (n_splits * n_dim))
-        log_p_data1 = self._compute_log_p_data(n1, k1, betaln_prior)
-        log_p_data2 = self._compute_log_p_data(n2, k2, betaln_prior)
-
-        return log_p_prior + log_p_data1 + log_p_data2
-
-    def compute_posterior(self, y, delta=1):
-        alpha, beta = self.prior
-        if delta == 0:
-            return alpha, beta
-
-        # see https://en.wikipedia.org/wiki/Conjugate_prior#Discrete_distributions
-        n = len(y)
-        k = y.sum()
-        alpha_post = alpha + delta*(n-k)
-        beta_post = beta + delta*k
-
-        return np.array([alpha_post, beta_post])
-
-    def compute_posterior_mean(self):
-        alpha, beta = self.posterior
-        p_alpha = alpha / (alpha + beta)
-        return np.array([p_alpha, 1-p_alpha])
-
-    def _predict_leaf(self):
-        # predict class
-        return np.argmax(self.posterior)
-
-    def _compute_log_p_data(self, n, k, betaln_prior):
-        alpha, beta = self.prior
-
-        # see https://www.cs.ubc.ca/~murphyk/Teaching/CS340-Fall06/reading/bernoulli.pdf, equation (42)
-        # which can be expressed as a fraction of beta functions
-        return betaln(alpha+(n-k), beta+k) - betaln_prior
-
-
-class MultiClassificationNode(Node):
-    """
-    Bayesian multi-class classification tree. Uses a Dirichlet prior.
+    Bayesian multi-class classification tree. Uses a Dirichlet prior (a multivariate
+    generalization of the Beta prior for more than 2 variables)
 
     Parameters
     ----------
@@ -155,7 +43,7 @@ class MultiClassificationNode(Node):
 
     See also
     --------
-    demo_multiclass_classification.py
+    demo_classification.py
     BinaryClassificationNode
     RegressionNode
 
@@ -168,16 +56,14 @@ class MultiClassificationNode(Node):
 
     Examples
     --------
-    See `demo_multiclass_classification.py`.
+    See `demo_classification.py`.
     """
 
-    def __init__(self, partition_prior, prior, level=0):
-        super().__init__(partition_prior, prior, level, MultiClassificationNode, False)
+    # def __init__(self, partition_prior, prior, child_type, level=0):
+    #     super().__init__(partition_prior, prior, child_type, False, level)
 
     def check_target(self, y):
-        n_classes = len(self.prior)
-        assert np.all(np.unique(y) == np.arange(0, n_classes)), \
-            'Expected target values 0..{} but found {}..{}'.format(n_classes - 1, y.min(), y.max())
+        self._check_classification_target(y)
 
     def compute_log_p_data_post_no_split(self, y):
         alphas = self.prior
@@ -224,11 +110,10 @@ class MultiClassificationNode(Node):
 
     def compute_posterior_mean(self):
         alphas = self.posterior
-        return alphas / np.sum(alphas)
+        if alphas is None:
+            return np.nan * np.ones(self.prior.shape)
 
-    def _predict_leaf(self):
-        # predict class
-        return np.argmax(self.posterior)
+        return alphas / np.sum(alphas)
 
     def _compute_log_p_data(self, k, betaln_prior):
         alphas = self.prior
@@ -236,3 +121,17 @@ class MultiClassificationNode(Node):
         # see https://www.cs.ubc.ca/~murphyk/Teaching/CS340-Fall06/reading/bernoulli.pdf, equation (42)
         # which can be expressed as a fraction of beta functions
         return multivariate_betaln(alphas+k) - betaln_prior
+
+    def _predict_leaf(self):
+        # predict class
+        return np.argmax(self.posterior)
+
+
+class PerpendicularClassificationNode(BasePerpendicularNode, BaseClassificationNode):
+    def __init__(self, partition_prior, prior, level=0):
+        super().__init__(partition_prior, prior, PerpendicularClassificationNode, False, level)
+
+
+class HyperplaneClassificationNode(BaseHyperplaneNode, BaseClassificationNode):
+    def __init__(self, partition_prior, prior, optimizer, n_mc, use_polar, level=0):
+        super().__init__(partition_prior, prior, HyperplaneClassificationNode, False, optimizer, n_mc, use_polar, level)

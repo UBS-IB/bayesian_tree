@@ -4,8 +4,7 @@ This is an implementation of the paper: [A Bayesian Decision Tree Algorithm](htt
 ## Feature Support
 
 This package implements:
-* Binary classification
-* Multi-class classification
+* Classification (binary and multi-class)
 * Regression
 
 ## Installation
@@ -22,12 +21,14 @@ pip install -e .
 We include some examples for various uses in the `examples` directory. However, very simply, you can do __one__ of :
 
 ```
-from bayesian_decision_tree.classification import BinaryClassificationNode
-from bayesian_decision_tree.classification import MultiClassificationNode
-from bayesian_decision_tree.regression import RegressionNode
+from bayesian_decision_tree.regression import PerpendicularRegressionNode
+from bayesian_decision_tree.regression import HyperplaneRegressionNode
+from bayesian_decision_tree.classification import PerpendicularClassificationNode
+from bayesian_decision_tree.classification import HyperplaneClassificationNode
 ```
 followed by instantiating the node with appropriate parameters and then calling `fit(X, y)` on it.
 
 ## TODO
 - Add parallelization option (dask)
-- Add optional pruning in the classification case (i.e., eliminate leaf siblings with identical class prediction)
+- Add optional pruning in the classification case (i.e., eliminate leaf siblings with identical class predictions)
+- Make more compatible to sklearn estimators

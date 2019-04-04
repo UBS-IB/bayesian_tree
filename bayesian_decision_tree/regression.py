@@ -3,13 +3,16 @@ This module declares the Bayesian regression tree algorithm:
 
 * RegressionNode
 """
+from abc import ABC
+
 import numpy as np
 from scipy.special import gammaln
 
-from bayesian_decision_tree.base import Node
+from bayesian_decision_tree.base_hyperplane import BaseHyperplaneNode
+from bayesian_decision_tree.base_perpendicular import BasePerpendicularNode
 
 
-class RegressionNode(Node):
+class BaseRegressionNode(ABC):
     """
     Bayesian regression tree. Uses a Normal-gamma(mu, kappa, alpha, beta) prior assuming unknown mean and unknown variance.
 
@@ -41,8 +44,7 @@ class RegressionNode(Node):
     See also
     --------
     demo_regression.py
-    BinaryClassificationNode
-    MultiClassificationNode
+    ClassificationNode
 
     References
     ----------
@@ -75,8 +77,8 @@ class RegressionNode(Node):
     See also `demo_regression.py`.
     """
 
-    def __init__(self, partition_prior, prior, level=0):
-        super().__init__(partition_prior, prior, level, RegressionNode, True)
+    def __init__(self, partition_prior, prior, child_type, level=0):
+        super().__init__(partition_prior, prior, child_type, True, level)
 
     def check_target(self, y):
         pass
@@ -161,3 +163,13 @@ class RegressionNode(Node):
                 + alpha*np.log(beta) - alpha_new*np.log(beta_new)
                 + 0.5*np.log(kappa/kappa_new)
                 - 0.5*n_new*np.log(2*np.pi))
+
+
+class PerpendicularRegressionNode(BasePerpendicularNode, BaseRegressionNode):
+    def __init__(self, partition_prior, prior, level=0):
+        super().__init__(partition_prior, prior, PerpendicularRegressionNode, True, level)
+
+
+class HyperplaneRegressionNode(BaseHyperplaneNode, BaseRegressionNode):
+    def __init__(self, partition_prior, prior, optimizer, n_mc, use_polar, level=0):
+        super().__init__(partition_prior, prior, HyperplaneRegressionNode, True, optimizer, n_mc, use_polar, level)

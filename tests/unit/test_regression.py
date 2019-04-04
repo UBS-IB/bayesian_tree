@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 from numpy.testing import assert_array_equal
 from scipy.sparse import csc_matrix, csr_matrix
-from tests.unit.helper import data_matrix_transforms
 
-from bayesian_decision_tree.regression import RegressionNode
+from bayesian_decision_tree.regression import PerpendicularRegressionNode
+from tests.unit.helper import data_matrix_transforms
 
 
 class RegressionNodeTest(TestCase):
@@ -21,7 +21,7 @@ class RegressionNodeTest(TestCase):
             tau_prior = 1/var_prior
             beta = alpha/tau_prior
 
-            prior = (mu, kappa, alpha, beta)
+            prior = np.array([mu, kappa, alpha, beta])
 
             Xy = np.array([
                 [0.0, 0],
@@ -35,7 +35,7 @@ class RegressionNodeTest(TestCase):
 
             X = data_matrix_transform(X)
 
-            root = RegressionNode(0.5, prior)
+            root = PerpendicularRegressionNode(0.5, prior)
             root.fit(X, y)
             print(root)
 
@@ -87,7 +87,7 @@ class RegressionNodeTest(TestCase):
             tau_prior = 1/var_prior
             beta = alpha/tau_prior
 
-            prior = (mu, kappa, alpha, beta)
+            prior = np.array([mu, kappa, alpha, beta])
 
             x = np.linspace(-np.pi/2, np.pi/2, 20)
             X = x.reshape(-1, 1)
@@ -97,7 +97,7 @@ class RegressionNodeTest(TestCase):
 
             mse_list = []
             for partition_prior in [0.1, 0.5, 0.9, 0.99, 0.999, 0.9999]:
-                root = RegressionNode(partition_prior, prior)
+                root = PerpendicularRegressionNode(partition_prior, prior)
                 root.fit(X, y)
                 mse = np.sum((y - root.predict(x))**2)/len(y)
                 mse_list.append(mse)
