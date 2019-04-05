@@ -1,19 +1,21 @@
+import numpy as np
 from sklearn.metrics import accuracy_score
 
 from bayesian_decision_tree.classification import PerpendicularClassificationNode
-from examples.helper import *
+from examples import helper
 
 # demo script for classification (binary or multi-class)
 if __name__ == '__main__':
-    args = parse_args()
+    # proxies (in case you're running this behind a firewall)
+    args = helper.parse_args()
     proxies = {
         'http': args.http_proxy,
         'https': args.https_proxy
     }
 
-    # choose a training set: uncomment one of the following sections
+    # data set: uncomment one of the following sections
 
-    # training/test data: artificial 4-class data somewhat similar to the Ripley data
+    # artificial 4-class data somewhat similar to the Ripley data
     n_train = 500
     n_test = 2000
     x0 = [1, 3, 2, 4]
@@ -35,11 +37,13 @@ if __name__ == '__main__':
     train = np.hstack((X_train, y_train))
     test = np.hstack((X_test, y_test))
 
-    # or you can call any of the load_* methods in helper to get a subset of the UCI datasets
-    # train, test = load_ripley(proxies)
+    # # UCI dataset
+    # train, test = helper.load_ripley(proxies)
 
-    # perform a 50:50 train:test split
+    n_dim = len(np.unique(train[:, -1]))
+
     if train is test:
+        # perform a 50:50 train:test split if no test data is given
         train = train[0::2]
         test = test[1::2]
 
@@ -50,7 +54,7 @@ if __name__ == '__main__':
 
     # prior
     prior_pseudo_observations = 1
-    prior = prior_pseudo_observations * np.ones(len(x0))
+    prior = prior_pseudo_observations * np.ones(n_dim)
 
     # Bayesian decision tree parameters
     partition_prior = 0.9
@@ -78,6 +82,6 @@ if __name__ == '__main__':
     # plot if 1D or 2D
     dimensions = X_train.shape[1]
     if dimensions == 1:
-        plot_1d(root, X_train, y_train, info_train, X_test, y_test, info_test)
+        helper.plot_1d(root, X_train, y_train, info_train, X_test, y_test, info_test)
     elif dimensions == 2:
-        plot_2d(root, X_train, y_train, info_train, X_test, y_test, info_test)
+        helper.plot_2d(root, X_train, y_train, info_train, X_test, y_test, info_test)

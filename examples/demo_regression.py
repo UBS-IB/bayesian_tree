@@ -2,15 +2,39 @@ import numpy as np
 from sklearn.metrics import mean_squared_error
 
 from bayesian_decision_tree.regression import PerpendicularRegressionNode
-from examples.helper import plot_1d, plot_2d
+from examples import helper
 
 # demo script for regression
 if __name__ == '__main__':
-    # training/test data
+    # proxies (in case you're running this behind a firewall)
+    args = helper.parse_args()
+    proxies = {
+        'http': args.http_proxy,
+        'https': args.https_proxy
+    }
+
+    # data set: uncomment one of the following sections
+
+    # synthetic sine wave
     X_train = np.linspace(0, 10, 100).reshape(-1, 1)
-    y_train = 100 * np.sin(np.linspace(0, 10, 100)).reshape(-1, 1)
-    X_test = X_train
-    y_test = y_train
+    y_train = 1 * np.sin(np.linspace(0, 10, 100)).reshape(-1, 1)
+    train = np.hstack((X_train, y_train))
+    test = train
+
+    # # UCI dataset
+    # train, test = helper.load_ripley(proxies)
+
+    n_dim = len(np.unique(train[:, -1]))
+
+    if train is test:
+        # perform a 50:50 train:test split if no test data is given
+        train = train[0::2]
+        test = test[1::2]
+
+    X_train = train[:, :-1]
+    y_train = train[:, -1]
+    X_test = test[:, :-1]
+    y_test = test[:, -1]
 
     # prior for regression: Normal-Gamma prior, see https://en.wikipedia.org/wiki/Conjugate_prior#Continuous_distributions
     mu = y_train.mean()
@@ -47,6 +71,6 @@ if __name__ == '__main__':
     # plot if 1D or 2D
     dimensions = X_train.shape[1]
     if dimensions == 1:
-        plot_1d(root, X_train, y_train, info_train, X_test, y_test, info_test)
+        helper.plot_1d(root, X_train, y_train, info_train, X_test, y_test, info_test)
     elif dimensions == 2:
-        plot_2d(root, X_train, y_train, info_train, X_test, y_test, info_test)
+        helper.plot_2d(root, X_train, y_train, info_train, X_test, y_test, info_test)

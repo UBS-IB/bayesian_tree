@@ -7,60 +7,19 @@ from abc import ABC
 
 import numpy as np
 
+from bayesian_decision_tree.base import BaseNode
 from bayesian_decision_tree.base_hyperplane import BaseHyperplaneNode
 from bayesian_decision_tree.base_perpendicular import BasePerpendicularNode
 from bayesian_decision_tree.utils import multivariate_betaln
 
 
-class BaseClassificationNode(ABC):
+class BaseClassificationNode(BaseNode, ABC):
     """
-    Bayesian multi-class classification tree. Uses a Dirichlet prior (a multivariate
-    generalization of the Beta prior for more than 2 variables)
-
-    Parameters
-    ----------
-    partition_prior : float, must be > 0.0 and < 1.0, typical value: 0.9
-        The prior probability of splitting a node's data into two children.
-
-        Small values tend to reduce the tree depth, leading to less expressiveness
-        but also to less overfitting.
-
-        Large values tend to increase the tree depth and thus lead to the tree
-        better fitting the data, which can lead to overfitting.
-
-    prior : array_like, shape = [number of classes]
-        The hyperparameters [alpha_0, alpha_1, ..., alpha_{N-1}] of the Dirichlet
-        conjugate prior, see [1] and [2]. All alpha_i must be positive, where
-        alpha_i represents the number of prior pseudo-observations of class i.
-
-        Small values for alpha_i represent a weak prior which leads to the
-        training data dominating the posterior. This can lead to overfitting.
-
-        Large values for alpha_i represent a strong prior and thus put less weight
-        on the data. This can be used for regularization.
-
-    level : DO NOT SET, ONLY USED BY SUBCLASSES
-
-    See also
-    --------
-    demo_classification.py
-    BinaryClassificationNode
-    RegressionNode
-
-    References
-    ----------
-
-    .. [1] https://en.wikipedia.org/wiki/Dirichlet_distribution#Conjugate_to_categorical/multinomial
-
-    .. [2] https://en.wikipedia.org/wiki/Conjugate_prior#Discrete_distributions
-
-    Examples
-    --------
-    See `demo_classification.py`.
+    Abstract base class for all classification trees (perpendicular and hyperplane).
     """
 
-    # def __init__(self, partition_prior, prior, child_type, level=0):
-    #     super().__init__(partition_prior, prior, child_type, False, level)
+    def __init__(self, partition_prior, prior, child_type, level=0):
+        super().__init__(partition_prior, prior, child_type, False, level)
 
     def check_target(self, y):
         self._check_classification_target(y)
@@ -110,9 +69,6 @@ class BaseClassificationNode(ABC):
 
     def compute_posterior_mean(self):
         alphas = self.posterior
-        if alphas is None:
-            return np.nan * np.ones(self.prior.shape)
-
         return alphas / np.sum(alphas)
 
     def _compute_log_p_data(self, k, betaln_prior):
@@ -128,10 +84,60 @@ class BaseClassificationNode(ABC):
 
 
 class PerpendicularClassificationNode(BasePerpendicularNode, BaseClassificationNode):
+    """
+    Bayesian multi-class classification tree. Uses a Dirichlet prior (a multivariate
+    generalization of the Beta prior for more than 2 variables)
+
+    Parameters
+    ----------
+    partition_prior : float, must be > 0.0 and < 1.0, typical value: 0.9
+        The prior probability of splitting a node's data into two children.
+
+        Small values tend to reduce the tree depth, leading to less expressiveness
+        but also to less overfitting.
+
+        Large values tend to increase the tree depth and thus lead to the tree
+        better fitting the data, which can lead to overfitting.
+
+    prior : array_like, shape = [number of classes]
+        The hyperparameters [alpha_0, alpha_1, ..., alpha_{N-1}] of the Dirichlet
+        conjugate prior, see [1] and [2]. All alpha_i must be positive, where
+        alpha_i represents the number of prior pseudo-observations of class i.
+
+        Small values for alpha_i represent a weak prior which leads to the
+        training data dominating the posterior. This can lead to overfitting.
+
+        Large values for alpha_i represent a strong prior and thus put less weight
+        on the data. This can be used for regularization.
+
+    level : DO NOT SET, ONLY USED BY SUBCLASSES
+
+    See also
+    --------
+    demo_classification.py
+    BinaryClassificationNode
+    RegressionNode
+
+    References
+    ----------
+
+    .. [1] https://en.wikipedia.org/wiki/Dirichlet_distribution#Conjugate_to_categorical/multinomial
+
+    .. [2] https://en.wikipedia.org/wiki/Conjugate_prior#Discrete_distributions
+
+    Examples
+    --------
+    See `demo_classification.py`.
+    """
+
     def __init__(self, partition_prior, prior, level=0):
-        super().__init__(partition_prior, prior, PerpendicularClassificationNode, False, level)
+        child_type = PerpendicularClassificationNode
+        BasePerpendicularNode.__init__(self, partition_prior, prior, child_type, False, level)
+        BaseClassificationNode.__init__(self, partition_prior, prior, child_type, level)
 
 
 class HyperplaneClassificationNode(BaseHyperplaneNode, BaseClassificationNode):
-    def __init__(self, partition_prior, prior, optimizer, n_mc, use_polar, level=0):
-        super().__init__(partition_prior, prior, HyperplaneClassificationNode, False, optimizer, n_mc, use_polar, level)
+    def __init__(self, partition_prior, prior, optimizer=None, level=0):
+        child_type = HyperplaneClassificationNode
+        BaseHyperplaneNode.__init__(self, partition_prior, prior, child_type, False, optimizer, level)
+        BaseClassificationNode.__init__(self, partition_prior, prior, child_type, level)

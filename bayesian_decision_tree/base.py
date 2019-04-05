@@ -24,9 +24,6 @@ class BaseNode(ABC, BaseEstimator):
 
         # to be set later
         self.posterior = None
-        self.split_dimension = -1
-        self.split_value = None
-        self.split_feature_name = None
         self.child1 = None
         self.child2 = None
 
@@ -66,7 +63,7 @@ class BaseNode(ABC, BaseEstimator):
             raise ValueError('Delta must be between 0.0 and 1.0 but was {}.'.format(delta))
 
         # input transformation
-        X, feature_names = self._extract_data_and_feature_names(X)
+        X, feature_names = self._normalize_data_and_feature_names(X)
 
         if isinstance(y, list):
             y = np.array(y)
@@ -95,7 +92,7 @@ class BaseNode(ABC, BaseEstimator):
         """
 
         # input transformation
-        X, _ = self._extract_data_and_feature_names(X)
+        X, _ = self._normalize_data_and_feature_names(X)
 
         prediction = self._predict(X, predict_class=True)
         if not isinstance(prediction, np.ndarray):
@@ -122,7 +119,7 @@ class BaseNode(ABC, BaseEstimator):
             raise ValueError('Cannot predict probabilities for regression trees')
 
         # input transformation
-        X, _ = self._extract_data_and_feature_names(X)
+        X, _ = self._normalize_data_and_feature_names(X)
 
         return self._predict(X, predict_class=False)
 
@@ -165,7 +162,7 @@ class BaseNode(ABC, BaseEstimator):
         pass
 
     @staticmethod
-    def _extract_data_and_feature_names(X):
+    def _normalize_data_and_feature_names(X):
         if X is None:
             feature_names = None
         elif isinstance(X, pd.DataFrame):
@@ -224,65 +221,36 @@ class BaseNode(ABC, BaseEstimator):
         assert np.all(np.unique(y) == np.arange(0, n_classes)), \
             'Expected target values 0..{} but found {}..{}'.format(n_classes - 1, y.min(), y.max())
 
-    # @abstractmethod
-    # def check_target(self, y):
-    #     pass
-    #
-    # @abstractmethod
-    # def compute_log_p_data_post_no_split(self, y):
-    #     pass
-    #
-    # @abstractmethod
-    # def compute_log_p_data_post_split(self, y, split_indices, n_dim):
-    #     pass
-    #
-    # @abstractmethod
-    # def compute_posterior(self, y, delta=1):
-    #     pass
-    #
-    # @abstractmethod
-    # def compute_posterior_mean(self):
-    #     pass
-    #
-    # @abstractmethod
-    # def _predict_leaf(self):
-    #     pass
-    #
-    # @abstractmethod
-    # def _fit(self, X, y, delta, verbose, feature_names):
-    #     pass
+    @abstractmethod
+    def check_target(self, y):
+        pass
+
+    @abstractmethod
+    def compute_log_p_data_post_no_split(self, y):
+        pass
+
+    @abstractmethod
+    def compute_log_p_data_post_split(self, y, split_indices, n_dim):
+        pass
+
+    @abstractmethod
+    def compute_posterior(self, y, delta=1):
+        pass
+
+    @abstractmethod
+    def compute_posterior_mean(self):
+        pass
+
+    @abstractmethod
+    def _predict_leaf(self):
+        pass
+
+    @abstractmethod
+    def _fit(self, X, y, delta, verbose, feature_names):
+        pass
 
     def is_leaf(self):
         return self.split_value is None
-
-    def __str__(self):
-        return self._str([], self.split_value, None)
-
-    def __str__(self):
-        return self._str([], self.split_value, '\u2523', '\u2517', '\u2503', '\u2265', None)
-
-    def _str(self, anchor, parent_split_value, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, is_first_child):
-        anchor_str = ''.join(' ' + a for a in anchor)
-        s = ''
-        if is_first_child is not None:
-            s += anchor_str + ' {}{}: '.format('<' if is_first_child else GEQ, parent_split_value)
-
-        if self.is_leaf():
-            s += 'y={}'.format(self._predict_leaf())
-            if not self.is_regression:
-                s += ', p(y)={}'.format(self.predict_proba(parent_split_value)[0])
-        else:
-            split_feature_name = self.split_feature_name
-            s += '{}={}'.format(split_feature_name, self.split_value)
-
-            s += '\n'
-            anchor_child1 = [VERT_RIGHT] if len(anchor) == 0 else (anchor[:-1] + [(BAR if is_first_child else '  '), VERT_RIGHT])
-            s += self.child1._str(anchor_child1, self.split_value, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, True)
-
-            s += '\n'
-            anchor_child2 = [DOWN_RIGHT] if len(anchor) == 0 else (anchor[:-1] + [(BAR if is_first_child else '  '), DOWN_RIGHT])
-            s += self.child2._str(anchor_child2, self.split_value, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, False)
-        return s
 
     def __repr__(self):
         return self.__str__()

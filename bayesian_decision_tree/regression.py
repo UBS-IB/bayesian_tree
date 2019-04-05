@@ -8,73 +8,14 @@ from abc import ABC
 import numpy as np
 from scipy.special import gammaln
 
+from bayesian_decision_tree.base import BaseNode
 from bayesian_decision_tree.base_hyperplane import BaseHyperplaneNode
 from bayesian_decision_tree.base_perpendicular import BasePerpendicularNode
 
 
-class BaseRegressionNode(ABC):
+class BaseRegressionNode(BaseNode, ABC):
     """
-    Bayesian regression tree. Uses a Normal-gamma(mu, kappa, alpha, beta) prior assuming unknown mean and unknown variance.
-
-    Parameters
-    ----------
-    partition_prior : float, must be > 0.0 and < 1.0, typical value: 0.9
-        The prior probability of splitting a node's data into two children.
-
-        Small values tend to reduce the tree depth, leading to less expressiveness
-        but also to less overfitting.
-
-        Large values tend to increase the tree depth and thus lead to the tree
-        better fitting the data, which can lead to overfitting.
-
-    prior : array_like, shape = [4]
-        The prior hyperparameters [mu, kappa, alpha, beta] of the Normal-gamma
-        distribution (see also [1], [2], [3]):
-
-        - mu:    prior pseudo-observation sample mean
-        - kappa: prior pseudo-observation count used to compute mu
-        - alpha: (prior pseudo-observation count used to compute sample variance)/2
-        - beta:  alpha * (prior pseudo-observation sample variance)
-
-        It is usually easier to compute these hyperparameters off more intuitive
-        base quantities, see examples section.
-
-    level : DO NOT SET, ONLY USED BY SUBCLASSES
-
-    See also
-    --------
-    demo_regression.py
-    ClassificationNode
-
-    References
-    ----------
-
-    .. [1] https://en.wikipedia.org/wiki/Normal-gamma_distribution
-
-    .. [2] https://en.wikipedia.org/wiki/Normal-gamma_distribution#Interpretation_of_parameters
-
-    .. [3] https://en.wikipedia.org/wiki/Conjugate_prior#Continuous_distributions
-
-    Examples
-    --------
-    It is usually convenient to compute the prior hyperparameters as follows:
-
-    >>> # prior mean; set to the mean of the target
-    >>> mu = ...
-    >>>
-    >>> # prior standard deviation; set to about 0.1 times the standard deviation of the target
-    >>> sd_prior = ...
-    >>>
-    >>> # the number of prior pseudo-observations; set to roughly 1 - 10 % of the number of training samples
-    >>> prior_obs = ...
-    >>>
-    >>> # now compute the prior
-    >>> kappa = prior_obs
-    >>> alpha = prior_obs/2
-    >>> beta = alpha*sd_prior**2
-    >>> prior = [mu, kappa, alpha, beta]
-
-    See also `demo_regression.py`.
+    Abstract base class for all classification trees (perpendicular and hyperplane).
     """
 
     def __init__(self, partition_prior, prior, child_type, level=0):
@@ -151,10 +92,6 @@ class BaseRegressionNode(ABC):
     def compute_posterior_mean(self):
         return self.posterior[0]  # mu is the posterior mean
 
-    def _predict_leaf(self):
-        # predict posterior mean
-        return self.compute_posterior_mean()
-
     def _compute_log_p_data(self, alpha_new, beta_new, kappa_new, n_new):
         mu, kappa, alpha, beta = self.prior
 
@@ -164,12 +101,84 @@ class BaseRegressionNode(ABC):
                 + 0.5*np.log(kappa/kappa_new)
                 - 0.5*n_new*np.log(2*np.pi))
 
+    def _predict_leaf(self):
+        # predict posterior mean
+        return self.compute_posterior_mean()
+
 
 class PerpendicularRegressionNode(BasePerpendicularNode, BaseRegressionNode):
+    """
+    Bayesian regression tree. Uses a Normal-gamma(mu, kappa, alpha, beta) prior assuming unknown mean and unknown variance.
+
+    Parameters
+    ----------
+    partition_prior : float, must be > 0.0 and < 1.0, typical value: 0.9
+        The prior probability of splitting a node's data into two children.
+
+        Small values tend to reduce the tree depth, leading to less expressiveness
+        but also to less overfitting.
+
+        Large values tend to increase the tree depth and thus lead to the tree
+        better fitting the data, which can lead to overfitting.
+
+    prior : array_like, shape = [4]
+        The prior hyperparameters [mu, kappa, alpha, beta] of the Normal-gamma
+        distribution (see also [1], [2], [3]):
+
+        - mu:    prior pseudo-observation sample mean
+        - kappa: prior pseudo-observation count used to compute mu
+        - alpha: (prior pseudo-observation count used to compute sample variance)/2
+        - beta:  alpha * (prior pseudo-observation sample variance)
+
+        It is usually easier to compute these hyperparameters off more intuitive
+        base quantities, see examples section.
+
+    level : DO NOT SET, ONLY USED BY SUBCLASSES
+
+    See also
+    --------
+    demo_regression.py
+    ClassificationNode
+
+    References
+    ----------
+
+    .. [1] https://en.wikipedia.org/wiki/Normal-gamma_distribution
+
+    .. [2] https://en.wikipedia.org/wiki/Normal-gamma_distribution#Interpretation_of_parameters
+
+    .. [3] https://en.wikipedia.org/wiki/Conjugate_prior#Continuous_distributions
+
+    Examples
+    --------
+    It is usually convenient to compute the prior hyperparameters as follows:
+
+    >>> # prior mean; set to the mean of the target
+    >>> mu = ...
+    >>>
+    >>> # prior standard deviation; set to about 0.1 times the standard deviation of the target
+    >>> sd_prior = ...
+    >>>
+    >>> # the number of prior pseudo-observations; set to roughly 1 - 10 % of the number of training samples
+    >>> prior_obs = ...
+    >>>
+    >>> # now compute the prior
+    >>> kappa = prior_obs
+    >>> alpha = prior_obs/2
+    >>> beta = alpha*sd_prior**2
+    >>> prior = [mu, kappa, alpha, beta]
+
+    See also `demo_regression.py`.
+    """
+
     def __init__(self, partition_prior, prior, level=0):
-        super().__init__(partition_prior, prior, PerpendicularRegressionNode, True, level)
+        child_type = PerpendicularRegressionNode
+        BasePerpendicularNode.__init__(self, partition_prior, prior, child_type, True, level)
+        BaseRegressionNode.__init__(self, partition_prior, prior, child_type, level)
 
 
 class HyperplaneRegressionNode(BaseHyperplaneNode, BaseRegressionNode):
-    def __init__(self, partition_prior, prior, optimizer, n_mc, use_polar, level=0):
-        super().__init__(partition_prior, prior, HyperplaneRegressionNode, True, optimizer, n_mc, use_polar, level)
+    def __init__(self, partition_prior, prior, optimizer=None, level=0):
+        child_type = HyperplaneRegressionNode
+        BaseHyperplaneNode.__init__(self, partition_prior, prior, child_type, True, optimizer, level)
+        BaseRegressionNode.__init__(self, partition_prior, prior, child_type, level)

@@ -13,7 +13,12 @@ class BasePerpendicularNode(BaseNode, ABC):
     """
 
     def __init__(self, partition_prior, prior, child_type, is_regression, level):
-        super().__init__(partition_prior, prior, child_type, is_regression, level)
+        BaseNode.__init__(self, partition_prior, prior, child_type, is_regression, level)
+
+        # to be set later
+        self.split_dimension = -1
+        self.split_value = None
+        self.split_feature_name = None
 
     def _fit(self, X, y, delta, verbose, feature_names):
         if verbose:
@@ -55,7 +60,6 @@ class BasePerpendicularNode(BaseNode, ABC):
                 best_split_dimension = dim
 
         # did we find a split that has a higher likelihood than the no-split likelihood?
-        self.posterior = self.compute_posterior(y)
         if best_split_index > 0:
             # split data and target to recursively train children
             X_best_split = X[:, best_split_dimension]
@@ -104,6 +108,9 @@ class BasePerpendicularNode(BaseNode, ABC):
             else:
                 self.child2.posterior = self.compute_posterior(y2)
 
+        # compute posterior
+        self.posterior = self.compute_posterior(y)
+
     def compute_child1_and_child2_indices(self, X, dense):
         X_split = X[:, self.split_dimension]
         if not dense:
@@ -139,6 +146,3 @@ class BasePerpendicularNode(BaseNode, ABC):
             anchor_child2 = [DOWN_RIGHT] if len(anchor) == 0 else (anchor[:-1] + [(BAR if is_first_child else '  '), DOWN_RIGHT])
             s += self.child2._str(anchor_child2, self.split_value, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, False)
         return s
-
-    def __repr__(self):
-        return self.__str__()

@@ -105,11 +105,23 @@ def load_eeg(proxies):
 
 
 def load_gamma(proxies):
-    # load Gamma data
+    # load MAGIC Gamma telescope data
     text = requests.get('https://archive.ics.uci.edu/ml/machine-learning-databases/magic/magic04.data', proxies=proxies).text
     text = text.replace('g', '0').replace('h', '1')
     lines = text.split('\n')
     train = np.vstack([np.fromstring(lines[i], sep=',') for i in range(len(lines)-1)])
+    test = train
+    return train, test
+
+
+def load_glass(proxies):
+    # load glass identificaion data
+    text = requests.get('https://archive.ics.uci.edu/ml/machine-learning-databases/glass/glass.data', proxies=proxies).text
+    lines = text.split('\n')
+    train = np.vstack([np.fromstring(lines[i], sep=',') for i in range(len(lines)-1)])
+    train = train[:, 1:]  # ignore ID row
+    train[:, -1] -= 1  # convert 1..7 to 0..6
+    train[np.where(train[:, -1] >= 4)[0], -1] -= 1  # skip missing class
     test = train
     return train, test
 
