@@ -2,6 +2,7 @@ from unittest import TestCase
 
 import numpy as np
 from numpy.testing import assert_array_equal
+from sklearn.metrics import mean_squared_error
 
 from bayesian_decision_tree.regression import PerpendicularRegressionNode
 from tests.unit.helper import data_matrix_transforms, create_regression_models
@@ -161,7 +162,7 @@ class RegressionNodeTest(TestCase):
                     print('Testing {}'.format(type(model).__name__))
                     model.fit(X, y)
                     print(model)
-                    mse = np.sum((y - model.predict(X))**2)/len(y)
+                    mse = mean_squared_error(y, model.predict(X))
                     mse_list.append(mse)
 
                 self.assertTrue(mse_list[-1] < mse_list[0])

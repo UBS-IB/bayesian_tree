@@ -39,7 +39,7 @@ class BaseNode(ABC, BaseEstimator):
 
         y : array-like, shape = [n_samples] or [n_samples, n_outputs]
             The target values. In case of binary classification only the
-            integers 0 and 1 are permitted. In case of multi-class classification
+            integers 0 and 1 are permitted. In case of multiclass classification
             only the integers 0, 1, ..., {n_classes-1} are permitted. In case of
             regression all finite float values are permitted.
 

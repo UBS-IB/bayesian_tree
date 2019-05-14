@@ -108,8 +108,8 @@ class BaseClassificationNode(BaseNode, ABC, ClassifierMixin):
 
 class PerpendicularClassificationNode(BasePerpendicularNode, BaseClassificationNode):
     """
-    Bayesian multi-class classification tree. Uses a Dirichlet prior (a multivariate
-    generalization of the Beta prior for more than 2 variables)
+    Bayesian binary or multiclass classification tree. Uses a Dirichlet prior (a
+    multivariate generalization of the Beta prior for more than 2 variables).
 
     Parameters
     ----------
