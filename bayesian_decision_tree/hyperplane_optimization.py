@@ -243,7 +243,12 @@ class RandomHyperplaneOptimizer(HyperplaneOptimizer):
             optimization_function.compute(hyperplane_normal)
 
 
-class MyOptimizer(HyperplaneOptimizer):
+class SimulatedAnnealingOptimizer(HyperplaneOptimizer):
+    """
+    A simple simulated annealing optimizer (experimental).
+    TODO: Complete
+    """
+
     def __init__(self, n_scan, n_keep, spread_factor, seed):
         super().__init__(search_space_is_unit_hypercube=True)
 

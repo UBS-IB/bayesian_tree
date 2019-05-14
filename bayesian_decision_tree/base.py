@@ -116,6 +116,26 @@ class BaseNode(ABC, BaseEstimator):
 
         return prediction
 
+    def feature_importance(self):
+        """
+        Compute and return feature importance of this tree after having fitted it to data. Feature
+        importance for a given feature dimension is defined as the sum of all increases in the
+        marginal data log-likelihood across splits of that dimension. Finally, the feature
+        importance vector is normalized to sum to 1.
+
+        Returns
+        -------
+        feature_importance: array of floats
+            The feature importance.
+        """
+        self._ensure_is_fitted()
+
+        feature_importance = np.zeros(self.n_dim)
+        self._update_feature_importance(feature_importance)
+        feature_importance /= feature_importance.sum()
+
+        return feature_importance
+
     def _predict(self, X, predict_class):
         if self.is_leaf():
             prediction = self._predict_leaf() if predict_class else self._compute_posterior_mean().reshape(1, -1)
@@ -150,6 +170,10 @@ class BaseNode(ABC, BaseEstimator):
                 predictions_merged[indices2] = predictions2
 
             return predictions_merged
+
+    @abstractmethod
+    def _update_feature_importance(self, feature_importance):
+        pass
 
     @staticmethod
     def _normalize_data_and_feature_names(X):

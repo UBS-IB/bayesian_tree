@@ -5,7 +5,7 @@ from scipy.optimize._differentialevolution import DifferentialEvolutionSolver
 from scipy.sparse import csc_matrix, csr_matrix
 
 from bayesian_decision_tree.classification import PerpendicularClassificationNode, HyperplaneClassificationNode
-from bayesian_decision_tree.hyperplane_optimization import ScipyOptimizer, RandomTwoPointOptimizer, MyOptimizer, RandomHyperplaneOptimizer
+from bayesian_decision_tree.hyperplane_optimization import ScipyOptimizer, RandomTwoPointOptimizer, SimulatedAnnealingOptimizer, RandomHyperplaneOptimizer
 from bayesian_decision_tree.regression import PerpendicularRegressionNode, HyperplaneRegressionNode
 
 # possible data matrix types/transforms that need to work for fit()
@@ -26,7 +26,7 @@ def create_classification_models(prior, partition_prior):
         HyperplaneClassificationNode(partition_prior, prior, optimizer=ScipyOptimizer(DifferentialEvolutionSolver, 666)),
         HyperplaneClassificationNode(partition_prior, prior, optimizer=RandomTwoPointOptimizer(100, 666)),
         HyperplaneClassificationNode(partition_prior, prior, optimizer=RandomHyperplaneOptimizer(100, 666)),
-        HyperplaneClassificationNode(partition_prior, prior, optimizer=MyOptimizer(10, 10, 0.9, 666)),
+        HyperplaneClassificationNode(partition_prior, prior, optimizer=SimulatedAnnealingOptimizer(10, 10, 0.9, 666)),
     ]
 
 
@@ -37,5 +37,5 @@ def create_regression_models(prior, partition_prior):
         HyperplaneRegressionNode(partition_prior, prior),
         HyperplaneRegressionNode(partition_prior, prior, optimizer=ScipyOptimizer(DifferentialEvolutionSolver, 666)),
         HyperplaneRegressionNode(partition_prior, prior, optimizer=RandomHyperplaneOptimizer(100, 666)),
-        HyperplaneRegressionNode(partition_prior, prior, optimizer=MyOptimizer(10, 10, 0.9, 666)),
+        HyperplaneRegressionNode(partition_prior, prior, optimizer=SimulatedAnnealingOptimizer(10, 10, 0.9, 666)),
     ]

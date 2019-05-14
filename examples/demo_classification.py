@@ -69,8 +69,7 @@ if __name__ == '__main__':
     print(root)
     print()
     print('Tree depth and number of leaves:', root.depth_and_leaves())
-    if isinstance(root, PerpendicularClassificationNode):
-        print('Feature importance:', root.feature_importance())
+    print('Feature importance:', root.feature_importance())
 
     # compute accuracy
     y_pred_train = root.predict(X_train)

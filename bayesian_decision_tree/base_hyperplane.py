@@ -107,6 +107,26 @@ class BaseHyperplaneNode(BaseNode, ABC):
         self._ensure_is_fitted()
         return self.best_hyperplane_normal is None
 
+    def feature_importance(self):
+        self._ensure_is_fitted()
+
+        feature_importance = np.zeros(self.n_dim)
+        self._update_feature_importance(feature_importance)
+        feature_importance /= feature_importance.sum()
+
+        return feature_importance
+
+    def _update_feature_importance(self, feature_importance):
+        if self.is_leaf():
+            return
+        else:
+            log_p_gain = self.log_p_data_post_best - self.log_p_data_post_no_split
+            normal = self.best_hyperplane_normal
+            feature_importance += np.array([log_p_gain * normal[dim] for dim in range(len(normal))])
+            if self.child1 is not None:
+                self.child1._update_feature_importance(feature_importance)
+                self.child2._update_feature_importance(feature_importance)
+
     def _prune(self):
         depth_and_leaves_start = self.depth_and_leaves()
 

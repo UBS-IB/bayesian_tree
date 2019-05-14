@@ -59,6 +59,7 @@ if __name__ == '__main__':
     print(root)
     print()
     print('Tree depth and number of leaves:', root.depth_and_leaves())
+    print('Feature importance:', root.feature_importance())
 
     # compute RMSE
     rmse_train = np.sqrt(mean_squared_error(root.predict(X_train), y_train))

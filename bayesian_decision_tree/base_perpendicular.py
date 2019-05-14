@@ -133,27 +133,6 @@ class BasePerpendicularNode(BaseNode, ABC):
         self._ensure_is_fitted()
         return self.split_value is None
 
-    def feature_importance(self):
-        """
-        Compute and return feature importance of this tree after having fitted it to data. Feature
-        importance for a given feature dimension is defined as the sum of all increases in the
-        marginal data log-likelihood across splits of that dimension. Finally, the feature
-        importance vector is normalized to sum to 1.
-
-        Returns
-        -------
-        feature_importance: array of floats
-            The feature importance.
-        """
-
-        self._ensure_is_fitted()
-
-        feature_importance = np.zeros(self.n_dim)
-        self._update_feature_importance(feature_importance)
-        feature_importance /= feature_importance.sum()
-
-        return feature_importance
-
     def _update_feature_importance(self, feature_importance):
         if self.is_leaf():
             return
