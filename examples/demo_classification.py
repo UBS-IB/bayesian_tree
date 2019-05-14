@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.metrics import accuracy_score
 
-from bayesian_decision_tree.classification import PerpendicularClassificationNode
+from bayesian_decision_tree.classification import PerpendicularClassificationNode, HyperplaneClassificationNode
 from examples import helper
 
 # demo script for classification (binary or multi-class)
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     train = np.hstack((X_train, y_train))
     test = np.hstack((X_test, y_test))
 
-    # # UCI dataset
+    # or, alternatively, load a UCI dataset
     # train, test = helper.load_ripley(proxies)
 
     n_dim = len(np.unique(train[:, -1]))
@@ -62,12 +62,15 @@ if __name__ == '__main__':
 
     # model
     root = PerpendicularClassificationNode(partition_prior, prior)
+    # root = HyperplaneClassificationNode(partition_prior, prior)
 
     # train
     root.fit(X_train, y_train, delta)
     print(root)
     print()
     print('Tree depth and number of leaves:', root.depth_and_leaves())
+    if isinstance(root, PerpendicularClassificationNode):
+        print('Feature importance:', root.feature_importance())
 
     # compute accuracy
     y_pred_train = root.predict(X_train)
@@ -82,6 +85,10 @@ if __name__ == '__main__':
     # plot if 1D or 2D
     dimensions = X_train.shape[1]
     if dimensions == 1:
-        helper.plot_1d(root, X_train, y_train, info_train, X_test, y_test, info_test)
+        if isinstance(root, PerpendicularClassificationNode):
+            helper.plot_1d_perpendicular(root, X_train, y_train, info_train, X_test, y_test, info_test)
     elif dimensions == 2:
-        helper.plot_2d(root, X_train, y_train, info_train, X_test, y_test, info_test)
+        if isinstance(root, PerpendicularClassificationNode):
+            helper.plot_2d_perpendicular(root, X_train, y_train, info_train, X_test, y_test, info_test)
+        else:
+            helper.plot_2d_hyperplane(root, X_train, y_train, info_train, X_test, y_test, info_test)

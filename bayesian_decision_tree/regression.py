@@ -7,13 +7,14 @@ from abc import ABC
 
 import numpy as np
 from scipy.special import gammaln
+from sklearn.base import RegressorMixin
 
 from bayesian_decision_tree.base import BaseNode
 from bayesian_decision_tree.base_hyperplane import BaseHyperplaneNode
 from bayesian_decision_tree.base_perpendicular import BasePerpendicularNode
 
 
-class BaseRegressionNode(BaseNode, ABC):
+class BaseRegressionNode(BaseNode, ABC, RegressorMixin):
     """
     Abstract base class for all classification trees (perpendicular and hyperplane).
     """
@@ -21,21 +22,21 @@ class BaseRegressionNode(BaseNode, ABC):
     def __init__(self, partition_prior, prior, child_type, level=0):
         super().__init__(partition_prior, prior, child_type, True, level)
 
-    def check_target(self, y):
+    def _check_target(self, y):
         pass
 
-    def compute_log_p_data_post_no_split(self, y):
+    def _compute_log_p_data_post_no_split(self, y):
         n = len(y)
         mean = y.mean()
 
         y_minus_mean_sq_sum = ((y - mean)**2).sum()
-        mu_post, kappa_post, alpha_post, beta_post = self._compute_posterior(n, mean, y_minus_mean_sq_sum)
+        mu_post, kappa_post, alpha_post, beta_post = self._compute_posterior_internal(n, mean, y_minus_mean_sq_sum)
         log_p_prior = np.log(1 - self.partition_prior**(1 + self.level))
         log_p_data = self._compute_log_p_data(alpha_post, beta_post, kappa_post, n)
 
         return log_p_prior + log_p_data
 
-    def compute_log_p_data_post_split(self, y, split_indices, n_dim):
+    def _compute_log_p_data_post_split(self, y, split_indices, n_dim):
         n = len(y)
         n_splits = len(split_indices)
 
@@ -58,8 +59,8 @@ class BaseRegressionNode(BaseNode, ABC):
             y_minus_mean_sq_sum1 = y_minus_mean_sq_sum1[split_indices_minus_1]
             y_minus_mean_sq_sum2 = y_minus_mean_sq_sum2[split_indices_minus_1]
 
-        mu1, kappa1, alpha1, beta1 = self._compute_posterior(n1, mean1, y_minus_mean_sq_sum1)
-        mu2, kappa2, alpha2, beta2 = self._compute_posterior(n2, mean2, y_minus_mean_sq_sum2)
+        mu1, kappa1, alpha1, beta1 = self._compute_posterior_internal(n1, mean1, y_minus_mean_sq_sum1)
+        mu2, kappa2, alpha2, beta2 = self._compute_posterior_internal(n2, mean2, y_minus_mean_sq_sum2)
 
         log_p_prior = np.log(self.partition_prior**(1+self.level) / (n_splits * n_dim))
         log_p_data1 = self._compute_log_p_data(alpha1, beta1, kappa1, n1)
@@ -67,7 +68,7 @@ class BaseRegressionNode(BaseNode, ABC):
 
         return log_p_prior + log_p_data1 + log_p_data2
 
-    def compute_posterior(self, y, delta=1):
+    def _compute_posterior(self, y, delta=1):
         if delta == 0:
             return self.prior
 
@@ -75,9 +76,9 @@ class BaseRegressionNode(BaseNode, ABC):
         mean = y.mean()
         y_minus_mean_sq_sum = ((y - mean)**2).sum()
 
-        return self._compute_posterior(n, mean, y_minus_mean_sq_sum, delta)
+        return self._compute_posterior_internal(n, mean, y_minus_mean_sq_sum, delta)
 
-    def _compute_posterior(self, n, mean, y_minus_mean_sq_sum, delta=1):
+    def _compute_posterior_internal(self, n, mean, y_minus_mean_sq_sum, delta=1):
         mu, kappa, alpha, beta = self.prior
 
         # see https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf, equations (86) - (89)
@@ -89,7 +90,7 @@ class BaseRegressionNode(BaseNode, ABC):
 
         return mu_post, kappa_post, alpha_post, beta_post
 
-    def compute_posterior_mean(self):
+    def _compute_posterior_mean(self):
         return self.posterior[0]  # mu is the posterior mean
 
     def _compute_log_p_data(self, alpha_new, beta_new, kappa_new, n_new):
@@ -103,7 +104,7 @@ class BaseRegressionNode(BaseNode, ABC):
 
     def _predict_leaf(self):
         # predict posterior mean
-        return self.compute_posterior_mean()
+        return self._compute_posterior_mean()
 
 
 class PerpendicularRegressionNode(BasePerpendicularNode, BaseRegressionNode):

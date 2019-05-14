@@ -30,5 +30,3 @@ followed by instantiating the node with appropriate parameters and then calling 
 
 ## TODO
 - Add parallelization option (dask)
-- Add optional pruning in the classification case (i.e., eliminate leaf siblings with identical class predictions)
-- Make more compatible to sklearn estimators

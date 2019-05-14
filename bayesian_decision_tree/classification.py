@@ -6,6 +6,7 @@ This module declares the Bayesian classification tree algorithms:
 from abc import ABC
 
 import numpy as np
+from sklearn.base import ClassifierMixin
 
 from bayesian_decision_tree.base import BaseNode
 from bayesian_decision_tree.base_hyperplane import BaseHyperplaneNode
@@ -13,7 +14,7 @@ from bayesian_decision_tree.base_perpendicular import BasePerpendicularNode
 from bayesian_decision_tree.utils import multivariate_betaln
 
 
-class BaseClassificationNode(BaseNode, ABC):
+class BaseClassificationNode(BaseNode, ABC, ClassifierMixin):
     """
     Abstract base class for all classification trees (perpendicular and hyperplane).
     """
@@ -21,20 +22,41 @@ class BaseClassificationNode(BaseNode, ABC):
     def __init__(self, partition_prior, prior, child_type, level=0):
         super().__init__(partition_prior, prior, child_type, False, level)
 
-    def check_target(self, y):
+    def predict_proba(self, X):
+        """Predict class probabilities of the input samples X.
+
+        Parameters
+        ----------
+        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix, pandas.DataFrame or pandas.SparseDataFrame, shape = [n_samples, n_features]
+            The input samples.
+
+        Returns
+        -------
+        p : array of shape = [n_samples, n_classes]
+            The class probabilities of the input samples.
+        """
+
+        # input transformation and checks
+        X, _ = self._normalize_data_and_feature_names(X)
+        self._ensure_is_fitted(X)
+
+        return self._predict(X, predict_class=False)
+
+    def _check_target(self, y):
         self._check_classification_target(y)
 
-    def compute_log_p_data_post_no_split(self, y):
+    def _compute_log_p_data_post_no_split(self, y):
         alphas = self.prior
-        alphas_post = self.compute_posterior(y)
+        alphas_post = self._compute_posterior(y)
 
         betaln_prior = multivariate_betaln(alphas)
         log_p_prior = np.log(1-self.partition_prior**(1+self.level))
+
         log_p_data = multivariate_betaln(alphas_post) - betaln_prior
 
         return log_p_prior + log_p_data
 
-    def compute_log_p_data_post_split(self, y, split_indices, n_dim):
+    def _compute_log_p_data_post_split(self, y, split_indices, n_dim):
         n_splits = len(split_indices)
 
         alphas = self.prior
@@ -49,12 +71,13 @@ class BaseClassificationNode(BaseNode, ABC):
 
         betaln_prior = multivariate_betaln(alphas)
         log_p_prior = np.log(self.partition_prior**(1+self.level) / (n_splits * n_dim))
-        log_p_data1 = self._compute_log_p_data(k1, betaln_prior)
-        log_p_data2 = self._compute_log_p_data(k2, betaln_prior)
+
+        log_p_data1 = self._compute_log_p_data(k1, betaln_prior, len(y))
+        log_p_data2 = self._compute_log_p_data(k2, betaln_prior, len(y))
 
         return log_p_prior + log_p_data1 + log_p_data2
 
-    def compute_posterior(self, y, delta=1):
+    def _compute_posterior(self, y, delta=1):
         alphas = self.prior
         if delta == 0:
             return alphas
@@ -67,11 +90,11 @@ class BaseClassificationNode(BaseNode, ABC):
 
         return alphas_post
 
-    def compute_posterior_mean(self):
+    def _compute_posterior_mean(self):
         alphas = self.posterior
         return alphas / np.sum(alphas)
 
-    def _compute_log_p_data(self, k, betaln_prior):
+    def _compute_log_p_data(self, k, betaln_prior, n):
         alphas = self.prior
 
         # see https://www.cs.ubc.ca/~murphyk/Teaching/CS340-Fall06/reading/bernoulli.pdf, equation (42)

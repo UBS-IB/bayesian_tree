@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix, csc_matrix
-from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.base import BaseEstimator
 
 
 class BaseNode(ABC, BaseEstimator):
@@ -23,11 +23,12 @@ class BaseNode(ABC, BaseEstimator):
         self.level = level
 
         # to be set later
+        self.n_dim = None
         self.posterior = None
         self.child1 = None
         self.child2 = None
 
-    def fit(self, X, y, delta=0.0, verbose=False):
+    def fit(self, X, y, delta=0.0, prune=False, verbose=False):
         """
         Trains this classification or regression tree using the training set (X, y).
 
@@ -46,6 +47,14 @@ class BaseNode(ABC, BaseEstimator):
             Determines the strengthening of the prior as the tree grows deeper,
             see [1]. Must be a value between 0.0 and 1.0.
 
+        prune : boolean, default=False
+            Prunes the tree after fitting if `True` by removing all splits that don't add information,
+            i.e., where the predictions of both children are identical. It's usually sensible to set
+            this to `True` in the classification case if you're only interested in class predictions
+            (`predict(X)`), but it makes sense to set it to `False` if you're looking for class
+            probabilities (`predict_proba(X)`). It can safely be set to 'True' in the regression case
+            because it will only merge children if their predictions are identical.
+
         verbose : bool, default=False
             Prints fitting progress.
 
@@ -57,7 +66,7 @@ class BaseNode(ABC, BaseEstimator):
 
         # validation
         if self.level == 0:
-            self.check_target(y)
+            self._check_target(y)
 
         if delta < 0.0 or delta > 1.0:
             raise ValueError('Delta must be between 0.0 and 1.0 but was {}.'.format(delta))
@@ -71,7 +80,12 @@ class BaseNode(ABC, BaseEstimator):
         y = y.squeeze()
 
         # fit
-        return self._fit(X, y, delta, verbose, feature_names)
+        self._fit(X, y, delta, verbose, feature_names)
+
+        if prune:
+            self._prune()
+
+        return
 
     def predict(self, X):
         """Predict class or regression value for X.
@@ -91,8 +105,9 @@ class BaseNode(ABC, BaseEstimator):
             The predicted classes, or the predict values.
         """
 
-        # input transformation
+        # input transformation and checks
         X, _ = self._normalize_data_and_feature_names(X)
+        self._ensure_is_fitted(X)
 
         prediction = self._predict(X, predict_class=True)
         if not isinstance(prediction, np.ndarray):
@@ -101,31 +116,9 @@ class BaseNode(ABC, BaseEstimator):
 
         return prediction
 
-    def predict_proba(self, X):
-        """Predict class probabilities of the input samples X.
-
-        Parameters
-        ----------
-        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix, pandas.DataFrame or pandas.SparseDataFrame, shape = [n_samples, n_features]
-            The input samples.
-
-        Returns
-        -------
-        p : array of shape = [n_samples, n_classes]
-            The class probabilities of the input samples.
-        """
-
-        if self.is_regression:
-            raise ValueError('Cannot predict probabilities for regression trees')
-
-        # input transformation
-        X, _ = self._normalize_data_and_feature_names(X)
-
-        return self._predict(X, predict_class=False)
-
     def _predict(self, X, predict_class):
         if self.is_leaf():
-            prediction = self._predict_leaf() if predict_class else self.compute_posterior_mean().reshape(1, -1)
+            prediction = self._predict_leaf() if predict_class else self._compute_posterior_mean().reshape(1, -1)
             predictions = self._create_merged_predictions_array(X, predict_class, prediction)
             predictions[:] = prediction
             return predictions
@@ -134,10 +127,11 @@ class BaseNode(ABC, BaseEstimator):
 
             dense = isinstance(X, np.ndarray)
             if not dense and isinstance(X, csr_matrix):
+                # column accesses coming up, so convert to CSC sparse matrix format
                 X = csc_matrix(X)
 
             # query both children, let them predict their side, and then re-assemble
-            indices1, indices2 = self.compute_child1_and_child2_indices(X, dense)
+            indices1, indices2 = self._compute_child1_and_child2_indices(X, dense)
 
             predictions_merged = None
 
@@ -156,10 +150,6 @@ class BaseNode(ABC, BaseEstimator):
                 predictions_merged[indices2] = predictions2
 
             return predictions_merged
-
-    @abstractmethod
-    def compute_child1_and_child2_indices(self, X, dense):
-        pass
 
     @staticmethod
     def _normalize_data_and_feature_names(X):
@@ -180,11 +170,18 @@ class BaseNode(ABC, BaseEstimator):
                 X = np.array([X])
 
             if X.ndim == 1:
-                X = np.expand_dims(X, 1)
+                X = np.expand_dims(X, 0)
 
             feature_names = ['x{}'.format(i) for i in range(X.shape[1])]
 
         return X, feature_names
+
+    def _ensure_is_fitted(self, X=None):
+        if self.posterior is None:
+            raise ValueError('Cannot predict on an untrained model; call .fit() first')
+
+        if X is not None and X.shape[1] != self.n_dim:
+            raise ValueError('Bad input dimensions: Expected {}, got {}'.format(self.n_dim, X.shape[1]))
 
     @staticmethod
     def _create_merged_predictions_array(X, predict_class, predictions_child):
@@ -210,8 +207,6 @@ class BaseNode(ABC, BaseEstimator):
         else:
             if self.child1 is not None:
                 depth, leaves = self.child1._update_depth_and_leaves(depth, leaves)
-
-            if self.child2 is not None:
                 depth, leaves = self.child2._update_depth_and_leaves(depth, leaves)
 
         return depth, leaves
@@ -222,23 +217,27 @@ class BaseNode(ABC, BaseEstimator):
             'Expected target values 0..{} but found {}..{}'.format(n_classes - 1, y.min(), y.max())
 
     @abstractmethod
-    def check_target(self, y):
+    def is_leaf(self):
         pass
 
     @abstractmethod
-    def compute_log_p_data_post_no_split(self, y):
+    def _check_target(self, y):
         pass
 
     @abstractmethod
-    def compute_log_p_data_post_split(self, y, split_indices, n_dim):
+    def _compute_log_p_data_post_no_split(self, y):
         pass
 
     @abstractmethod
-    def compute_posterior(self, y, delta=1):
+    def _compute_log_p_data_post_split(self, y, split_indices, n_dim):
         pass
 
     @abstractmethod
-    def compute_posterior_mean(self):
+    def _compute_posterior(self, y, delta=1):
+        pass
+
+    @abstractmethod
+    def _compute_posterior_mean(self):
         pass
 
     @abstractmethod
@@ -249,8 +248,13 @@ class BaseNode(ABC, BaseEstimator):
     def _fit(self, X, y, delta, verbose, feature_names):
         pass
 
-    def is_leaf(self):
-        return self.split_value is None
+    @abstractmethod
+    def _prune(self):
+        pass
 
     def __repr__(self):
         return self.__str__()
+
+    @abstractmethod
+    def _compute_child1_and_child2_indices(self, X, dense):
+        pass

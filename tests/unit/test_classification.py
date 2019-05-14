@@ -1,241 +1,248 @@
 from unittest import TestCase
 
 import numpy as np
-import pandas as pd
 from numpy.testing import assert_array_equal, assert_array_almost_equal
-from scipy.optimize._differentialevolution import DifferentialEvolutionSolver
-from scipy.sparse import csc_matrix, csr_matrix
 
-from bayesian_decision_tree.classification import PerpendicularClassificationNode, HyperplaneClassificationNode
-from bayesian_decision_tree.hyperplane_optimization import ScipyOptimizer, RandomTwoPointOptimizer, RandomHyperplaneOptimizer
-from tests.unit.helper import data_matrix_transforms
+from bayesian_decision_tree.classification import PerpendicularClassificationNode
+from tests.unit.helper import data_matrix_transforms, create_classification_models
 
 
 class ClassificationNodeTest(TestCase):
-    def test_one_partition(self):
+    def test_cannot_predict_before_training(self):
+        for model in create_classification_models(np.array([1, 1]), 0.5):
+            # can't predict yet
+            try:
+                model.predict([])
+                self.fail()
+            except ValueError:
+                pass
+
+            # can't predict probability yet
+            try:
+                model.predict_proba([])
+                self.fail()
+            except ValueError:
+                pass
+
+    def test_cannot_predict_with_bad_input_dimensions(self):
         for data_matrix_transform in data_matrix_transforms:
-            for model_creator in [
-                lambda: PerpendicularClassificationNode(0.5, np.array([1, 1])),
-                lambda: HyperplaneClassificationNode(0.5, np.array([1, 1])),
-                lambda: HyperplaneClassificationNode(0.5, np.array([1, 1]), optimizer=ScipyOptimizer(DifferentialEvolutionSolver, 666)),
-                lambda: HyperplaneClassificationNode(0.5, np.array([1, 1]), optimizer=RandomTwoPointOptimizer(100, 666)),
-                lambda: HyperplaneClassificationNode(0.5, np.array([1, 1]), optimizer=RandomHyperplaneOptimizer(100, 666)),
-            ]:
+            for model in create_classification_models(np.array([1, 1]), 0.5):
                 Xy = np.array([
-                    [0.0, 0],
-                    [0.1, 1],
-                    [0.9, 0],
-                    [1.0, 1],
-                    [1.0, 0],
+                    [0.0, 0.0, 0],
+                    [0.0, 1.0, 1],
+                    [1.0, 1.0, 0],
+                    [1.0, 0.0, 1],
+                    [1.0, 0.0, 0],
                 ])
                 X = Xy[:, :-1]
                 y = Xy[:, -1]
 
                 X = data_matrix_transform(X)
 
-                root = model_creator()
-                print('Testing {}'.format(type(root).__name__))
-                root.fit(X, y)
-                print(root)
+                print('Testing {}'.format(type(model).__name__))
+                model.fit(X, y)
+                print(model)
 
-                self.assertEqual(root.depth_and_leaves(), (0, 1))
+                model.predict([0, 0])
 
-                self.assertIsNone(root.child1)
-                self.assertIsNone(root.child2)
+                try:
+                    model.predict(0)
+                    self.fail()
+                except ValueError:
+                    pass
 
-                if isinstance(root, PerpendicularClassificationNode):
-                    self.assertEqual(root.split_dimension, -1)
-                    self.assertEqual(root.split_value, None)
+                try:
+                    model.predict([0])
+                    self.fail()
+                except ValueError:
+                    pass
+
+                try:
+                    model.predict([0, 0, 0])
+                    self.fail()
+                except ValueError:
+                    pass
+
+    def test_no_split(self):
+        for data_matrix_transform in data_matrix_transforms:
+            for model in create_classification_models(np.array([1, 1]), 0.5):
+                Xy = np.array([
+                    [0.0, 0, 0],
+                    [0.0, 1, 1],
+                    [1.0, 2, 0],
+                    [1.0, 3, 1],
+                    [1.0, 4, 0],
+                ])
+                X = Xy[:, :-1]
+                y = Xy[:, -1]
+
+                X = data_matrix_transform(X)
+
+                print('Testing {}'.format(type(model).__name__))
+                model.fit(X, y)
+                print(model)
+
+                self.assertEqual(model.depth_and_leaves(), (0, 1))
+
+                self.assertIsNone(model.child1)
+                self.assertIsNone(model.child2)
+
+                if isinstance(model, PerpendicularClassificationNode):
+                    self.assertEqual(model.split_dimension, -1)
+                    self.assertEqual(model.split_value, None)
                 else:
-                    self.assertEqual(root.best_hyperplane_origin, None)
-                    self.assertEqual(root.best_hyperplane_normal, None)
+                    self.assertEqual(model.best_hyperplane_origin, None)
+                    self.assertEqual(model.best_hyperplane_normal, None)
 
                 expected = np.array([0, 0, 0, 0])
-                self.assertEqual(root.predict(0.0), expected[0])
-                self.assertEqual(root.predict(0.49), expected[1])
-                self.assertEqual(root.predict(0.51), expected[2])
-                self.assertEqual(root.predict(1.0), expected[3])
+                self.assertEqual(model.predict([0, 0]), expected[0])
+                self.assertEqual(model.predict([0, 1]), expected[1])
+                self.assertEqual(model.predict([1, 0]), expected[2])
+                self.assertEqual(model.predict([1, 1]), expected[3])
 
-                assert_array_equal(root.predict([0.0, 0.49, 0.51, 1.0]), expected)
-                assert_array_equal(root.predict([[0.0], [0.49], [0.51], [1.0]]), expected)
+                for data_matrix_transform2 in data_matrix_transforms:
+                    assert_array_equal(model.predict(data_matrix_transform2([[0, 0], [0, 1], [1, 0], [1, 1]])), expected)
 
-                assert_array_equal(root.predict(np.array([0.0, 0.49, 0.51, 1.0])), expected)
-                assert_array_equal(root.predict(np.array([[0.0], [0.49], [0.51], [1.0]])), expected)
+                expected = np.array([[4/7, 3/7], [4/7, 3/7], [4/7, 3/7], [4/7, 3/7], ])
+                assert_array_almost_equal(model.predict_proba([0, 0]), np.expand_dims(expected[0], 0))
+                assert_array_almost_equal(model.predict_proba([0, 1]), np.expand_dims(expected[1], 0))
+                assert_array_almost_equal(model.predict_proba([1, 0]), np.expand_dims(expected[2], 0))
+                assert_array_almost_equal(model.predict_proba([1, 1]), np.expand_dims(expected[3], 0))
 
-                assert_array_equal(root.predict(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.0]])), expected)
-                assert_array_equal(root.predict(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.0]]).to_sparse()), expected)
-                assert_array_equal(root.predict(csc_matrix([[0.0], [0.49], [0.51], [1.0]])), expected)
-                assert_array_equal(root.predict(csr_matrix([[0.0], [0.49], [0.51], [1.0]])), expected)
+                for data_matrix_transform2 in data_matrix_transforms:
+                    assert_array_almost_equal(model.predict_proba(data_matrix_transform2([[0, 0], [0, 1], [1, 0], [1, 1]])), expected)
 
-                expected = np.array([[(1+3)/7, (1+2)/7], [(1+3)/7, (1+2)/7], [(1+3)/7, (1+2)/7], [(1+3)/7, (1+2)/7], ])
-                assert_array_almost_equal(root.predict_proba(0.0), np.expand_dims(expected[0], 0))
-                assert_array_almost_equal(root.predict_proba(0.49), np.expand_dims(expected[1], 0))
-                assert_array_almost_equal(root.predict_proba(0.51), np.expand_dims(expected[2], 0))
-                assert_array_almost_equal(root.predict_proba(1.0), np.expand_dims(expected[3], 0))
-                assert_array_almost_equal(root.predict_proba(np.array([0.0, 0.49, 0.51, 1.0])), expected)
-                assert_array_almost_equal(root.predict_proba(np.array([[0.0], [0.49], [0.51], [1.0]])), expected)
-
-                assert_array_almost_equal(root.predict_proba(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.0]])), expected)
-                assert_array_almost_equal(root.predict_proba(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.0]]).to_sparse()), expected)
-                assert_array_almost_equal(root.predict_proba(csc_matrix([[0.0], [0.49], [0.51], [1.0]])), expected)
-                assert_array_almost_equal(root.predict_proba(csr_matrix([[0.0], [0.49], [0.51], [1.0]])), expected)
-
-    def test_two_partitions(self):
+    def test_one_split(self):
         for data_matrix_transform in data_matrix_transforms:
-            for model_creator in [
-                lambda: PerpendicularClassificationNode(0.5, np.array([1, 1])),
-                lambda: HyperplaneClassificationNode(0.5, np.array([1, 1])),
-                lambda: HyperplaneClassificationNode(0.5, np.array([1, 1]), optimizer=ScipyOptimizer(DifferentialEvolutionSolver, 666)),
-                lambda: HyperplaneClassificationNode(0.5, np.array([1, 1]), optimizer=RandomTwoPointOptimizer(100, 666)),
-                lambda: HyperplaneClassificationNode(0.5, np.array([1, 1]), optimizer=RandomHyperplaneOptimizer(100, 666)),
-            ]:
+            for model in create_classification_models(np.array([1, 1]), 0.7):
                 Xy = np.array([
-                    [0.0, 0],
-                    [0.1, 0],
-                    [0.9, 1],
-                    [1.0, 1],
+                    [0.0, 0, 0],
+                    [0.1, 1, 0],
+
+                    [0.9, 0, 1],
+                    [1.0, 1, 1],
                 ])
                 X = Xy[:, :-1]
                 y = Xy[:, -1]
 
                 X = data_matrix_transform(X)
 
-                root = model_creator()
-                print('Testing {}'.format(type(root).__name__))
-                root.fit(X, y)
-                print(root)
+                print('Testing {}'.format(type(model).__name__))
+                model.fit(X, y)
+                print(model)
 
-                self.assertEqual(root.depth_and_leaves(), (1, 2))
+                self.assertEqual(model.depth_and_leaves(), (1, 2))
 
-                self.assertIsNotNone(root.child1)
-                self.assertIsNone(root.child1.child1)
-                self.assertIsNone(root.child1.child2)
+                self.assertIsNotNone(model.child1)
+                self.assertIsNone(model.child1.child1)
+                self.assertIsNone(model.child1.child2)
 
-                self.assertIsNotNone(root.child2)
-                self.assertIsNone(root.child2.child1)
-                self.assertIsNone(root.child2.child2)
+                self.assertIsNotNone(model.child2)
+                self.assertIsNone(model.child2.child1)
+                self.assertIsNone(model.child2.child2)
 
-                if isinstance(root, PerpendicularClassificationNode):
-                    self.assertEqual(root.split_dimension, 0)
-                    self.assertEqual(root.split_value, 0.5)
+                if isinstance(model, PerpendicularClassificationNode):
+                    self.assertEqual(model.split_dimension, 0)
+                    self.assertEqual(model.split_value, 0.5)
                 else:
-                    self.assertEqual(root.best_hyperplane_origin, np.array([0.5]))
+                    self.assertTrue(0.1 < model.best_hyperplane_origin[0] < 0.9)
 
                 expected = np.array([0, 0, 1, 1])
-                self.assertEqual(root.predict(0.0), expected[0])
-                self.assertEqual(root.predict(0.49), expected[1])
-                self.assertEqual(root.predict(0.51), expected[2])
-                self.assertEqual(root.predict(1.0), expected[3])
+                self.assertEqual(model.predict([0, 0]), expected[0])
+                self.assertEqual(model.predict([0, 1]), expected[1])
+                self.assertEqual(model.predict([1, 0]), expected[2])
+                self.assertEqual(model.predict([1, 1]), expected[3])
 
-                assert_array_equal(root.predict([0.0, 0.49, 0.51, 1.0]), expected)
-                assert_array_equal(root.predict([[0.0], [0.49], [0.51], [1.0]]), expected)
+                for data_matrix_transform2 in data_matrix_transforms:
+                    assert_array_equal(model.predict(data_matrix_transform2([[0, 0], [0, 1], [1, 0], [1, 0]])), expected)
 
-                assert_array_equal(root.predict(np.array([0.0, 0.49, 0.51, 1.0])), expected)
-                assert_array_equal(root.predict(np.array([[0.0], [0.49], [0.51], [1.0]])), expected)
+                expected = np.array([[3/4, 1/4], [3/4, 1/4], [1/4, 3/4], [1/4, 3/4]])
+                assert_array_almost_equal(model.predict_proba([0, 0]), np.expand_dims(expected[0], 0))
+                assert_array_almost_equal(model.predict_proba([0, 1]), np.expand_dims(expected[1], 0))
+                assert_array_almost_equal(model.predict_proba([1, 0]), np.expand_dims(expected[2], 0))
+                assert_array_almost_equal(model.predict_proba([1, 1]), np.expand_dims(expected[3], 0))
 
-                assert_array_equal(root.predict(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.0]])), expected)
-                assert_array_equal(root.predict(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.0]]).to_sparse()), expected)
-                assert_array_equal(root.predict(csc_matrix([[0.0], [0.49], [0.51], [1.0]])), expected)
-                assert_array_equal(root.predict(csr_matrix([[0.0], [0.49], [0.51], [1.0]])), expected)
+                for data_matrix_transform2 in data_matrix_transforms:
+                    assert_array_almost_equal(model.predict_proba(data_matrix_transform2([[0, 0], [0, 1], [1, 0], [1, 0]])), expected)
 
-                expected = np.array([[(1+2)/4, 1/4], [(1+2)/4, 1/4], [1/4, (1+2)/4], [1/4, (1+2)/4]])
-                assert_array_almost_equal(root.predict_proba(0.0), np.expand_dims(expected[0], 0))
-                assert_array_almost_equal(root.predict_proba(0.49), np.expand_dims(expected[1], 0))
-                assert_array_almost_equal(root.predict_proba(0.51), np.expand_dims(expected[2], 0))
-                assert_array_almost_equal(root.predict_proba(1.0), np.expand_dims(expected[3], 0))
-                assert_array_equal(root.predict_proba(np.array([0.0, 0.49, 0.51, 1.0])), expected)
-                assert_array_equal(root.predict_proba(np.array([[0.0], [0.49], [0.51], [1.0]])), expected)
-
-                assert_array_almost_equal(root.predict_proba(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.0]])), expected)
-                assert_array_almost_equal(root.predict_proba(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.0]]).to_sparse()), expected)
-                assert_array_almost_equal(root.predict_proba(csc_matrix([[0.0], [0.49], [0.51], [1.0]])), expected)
-                assert_array_almost_equal(root.predict_proba(csr_matrix([[0.0], [0.49], [0.51], [1.0]])), expected)
-
-    def test_three_partitions(self):
+    def test_two_splits(self):
         for data_matrix_transform in data_matrix_transforms:
-            for model_creator in [
-                lambda: PerpendicularClassificationNode(0.9, np.array([1, 1])),
-                lambda: HyperplaneClassificationNode(0.9, np.array([1, 1])),
-                lambda: HyperplaneClassificationNode(0.9, np.array([1, 1]), optimizer=ScipyOptimizer(DifferentialEvolutionSolver, 666)),
-                lambda: HyperplaneClassificationNode(0.9, np.array([1, 1]), optimizer=RandomHyperplaneOptimizer(100, 666)),
-            ]:
+            for model in create_classification_models(np.array([1, 1]), 0.9):
                 Xy = np.array([
-                    [0.0, 0],
-                    [0.1, 0],
-                    [0.2, 0],
-                    [0.3, 0],
-                    [0.7, 1],
-                    [0.9, 1],
-                    [1.0, 1],
-                    [2.0, 0],
-                    [2.1, 0],
-                    [2.2, 0],
+                    [0.0, 0.0, 0],
+                    [0.1, 1.0, 0],
+                    [0.2, 0.01, 0],
+                    [0.3, 0.09, 0],
+
+                    [0.7, 0.02, 1],
+                    [0.8, 0.98, 1],
+                    [0.9, 0.03, 1],
+                    [1.0, 0.97, 1],
+
+                    [2.0, 0.04, 0],
+                    [2.1, 0.96, 0],
                 ])
                 X = Xy[:, :-1]
                 y = Xy[:, -1]
 
                 X = data_matrix_transform(X)
 
-                root = model_creator()
-                print('Testing {}'.format(type(root).__name__))
-                root.fit(X, y)
-                print(root)
+                print('Testing {}'.format(type(model).__name__))
+                model.fit(X, y, prune=True)
+                print(model)
 
-                self.assertEqual(root.depth_and_leaves(), (2, 3))
+                if isinstance(model, PerpendicularClassificationNode):
+                    self.assertEqual(model.depth_and_leaves(), (2, 3))
 
-                self.assertIsNotNone(root.child1)
-                self.assertIsNone(root.child1.child1)
-                self.assertIsNone(root.child1.child2)
+                    self.assertIsNotNone(model.child1)
+                    self.assertIsNone(model.child1.child1)
+                    self.assertIsNone(model.child1.child2)
 
-                self.assertIsNotNone(root.child2)
-                self.assertIsNotNone(root.child2.child1)
-                self.assertIsNotNone(root.child2.child2)
+                    self.assertIsNotNone(model.child2)
+                    self.assertIsNotNone(model.child2.child1)
+                    self.assertIsNotNone(model.child2.child2)
 
-                self.assertIsNone(root.child2.child1.child1)
-                self.assertIsNone(root.child2.child1.child2)
-                self.assertIsNone(root.child2.child2.child1)
-                self.assertIsNone(root.child2.child2.child2)
+                    self.assertIsNone(model.child2.child1.child1)
+                    self.assertIsNone(model.child2.child1.child2)
+                    self.assertIsNone(model.child2.child2.child1)
+                    self.assertIsNone(model.child2.child2.child2)
 
-                if isinstance(root, PerpendicularClassificationNode):
-                    self.assertEqual(root.split_dimension, 0)
-                    self.assertEqual(root.split_value, 0.5)
+                    self.assertEqual(model.split_dimension, 0)
+                    self.assertEqual(model.split_value, 0.5)
 
-                    self.assertEqual(root.child2.split_dimension, 0)
-                    self.assertEqual(root.child2.split_value, 1.5)
+                    self.assertEqual(model.child2.split_dimension, 0)
+                    self.assertEqual(model.child2.split_value, 1.5)
                 else:
-                    self.assertEqual(root.best_hyperplane_origin, np.array([0.5]))
-                    self.assertEqual(root.child2.best_hyperplane_origin, np.array([1.5]))
+                    self.assertEqual(model.depth_and_leaves(), (2, 3))
+
+                    self.assertTrue(0.3 < model.best_hyperplane_origin[0] < 0.7)
+                    if model.child1.best_hyperplane_origin is not None:
+                        self.assertTrue(1.0 < model.child1.best_hyperplane_origin[0] < 2.0)
+                    else:
+                        self.assertTrue(1.0 < model.child2.best_hyperplane_origin[0] < 2.0)
 
                 expected = np.array([0, 0, 1, 1, 0, 0])
-                self.assertEqual(root.predict(0.0), expected[0])
-                self.assertEqual(root.predict(0.49), expected[1])
-                self.assertEqual(root.predict(0.51), expected[2])
-                self.assertEqual(root.predict(1.49), expected[3])
-                self.assertEqual(root.predict(1.51), expected[4])
-                self.assertEqual(root.predict(100), expected[5])
+                self.assertEqual(model.predict([0, 0.5]), expected[0])
+                self.assertEqual(model.predict([0.4, 0.5]), expected[1])
+                self.assertEqual(model.predict([0.6, 0.5]), expected[2])
+                self.assertEqual(model.predict([1.4, 0.5]), expected[3])
+                self.assertEqual(model.predict([1.6, 0.5]), expected[4])
+                self.assertEqual(model.predict([100, 0.5]), expected[5])
 
-                assert_array_equal(root.predict([0.0, 0.49, 0.51, 1.49, 1.51, 100]), expected)
-                assert_array_equal(root.predict([[0.0], [0.49], [0.51], [1.49], [1.51], [100]]), expected)
+                for data_matrix_transform2 in data_matrix_transforms:
+                    assert_array_equal(model.predict(data_matrix_transform2(
+                        [[0.0, 0.5], [0.4, 0.5], [0.6, 0.5], [1.4, 0.5], [1.6, 0.5], [100, 0.5]])
+                    ), expected)
 
-                assert_array_equal(root.predict(np.array([0.0, 0.49, 0.51, 1.49, 1.51, 100])), expected)
-                assert_array_equal(root.predict(np.array([[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
+                expected = np.array([[5/6, 1/6], [5/6, 1/6], [1/6, 5/6], [1/6, 5/6], [3/4, 1/4], [3/4, 1/4]])
+                assert_array_almost_equal(model.predict_proba([0, 0.5]), np.expand_dims(expected[0], 0))
+                assert_array_almost_equal(model.predict_proba([0.4, 0.5]), np.expand_dims(expected[1], 0))
+                assert_array_almost_equal(model.predict_proba([0.6, 0.5]), np.expand_dims(expected[2], 0))
+                assert_array_almost_equal(model.predict_proba([1.4, 0.5]), np.expand_dims(expected[3], 0))
+                assert_array_almost_equal(model.predict_proba([1.6, 0.5]), np.expand_dims(expected[4], 0))
+                assert_array_almost_equal(model.predict_proba([100, 0.5]), np.expand_dims(expected[5], 0))
 
-                assert_array_equal(root.predict(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
-                assert_array_equal(root.predict(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.49], [1.51], [100]]).to_sparse()), expected)
-                assert_array_equal(root.predict(csc_matrix([[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
-                assert_array_equal(root.predict(csr_matrix([[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
-
-                expected = np.array([[(1+4)/6, 1/6], [(1+4)/6, 1/6], [1/5, (1+3)/5], [1/5, (1+3)/5], [(1+3)/5, 1/5], [(1+3)/5, 1/5]])
-                assert_array_almost_equal(root.predict_proba(0.0), np.expand_dims(expected[0], 0))
-                assert_array_almost_equal(root.predict_proba(0.49), np.expand_dims(expected[1], 0))
-                assert_array_almost_equal(root.predict_proba(0.51), np.expand_dims(expected[2], 0))
-                assert_array_almost_equal(root.predict_proba(1.49), np.expand_dims(expected[3], 0))
-                assert_array_almost_equal(root.predict_proba(1.51), np.expand_dims(expected[4], 0))
-                assert_array_almost_equal(root.predict_proba(100), np.expand_dims(expected[5], 0))
-                assert_array_almost_equal(root.predict_proba(np.array([0.0, 0.49, 0.51, 1.49, 1.51, 100])), expected)
-                assert_array_almost_equal(root.predict_proba(np.array([[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
-
-                assert_array_almost_equal(root.predict_proba(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
-                assert_array_almost_equal(root.predict_proba(pd.DataFrame(data=[[0.0], [0.49], [0.51], [1.49], [1.51], [100]]).to_sparse()), expected)
-                assert_array_almost_equal(root.predict_proba(csc_matrix([[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
-                assert_array_almost_equal(root.predict_proba(csr_matrix([[0.0], [0.49], [0.51], [1.49], [1.51], [100]])), expected)
+                for data_matrix_transform2 in data_matrix_transforms:
+                    assert_array_equal(model.predict_proba(data_matrix_transform2(
+                        [[0.0, 0.5], [0.4, 0.5], [0.6, 0.5], [1.4, 0.5], [1.6, 0.5], [100, 0.5]])
+                    ), expected)

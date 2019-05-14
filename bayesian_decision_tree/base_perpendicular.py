@@ -19,6 +19,8 @@ class BasePerpendicularNode(BaseNode, ABC):
         self.split_dimension = -1
         self.split_value = None
         self.split_feature_name = None
+        self.log_p_data_post_no_split = None
+        self.log_p_data_post_best = None
 
     def _fit(self, X, y, delta, verbose, feature_names):
         if verbose:
@@ -26,10 +28,12 @@ class BasePerpendicularNode(BaseNode, ABC):
 
         dense = isinstance(X, np.ndarray)
         if not dense and isinstance(X, csr_matrix):
+            # column accesses coming up, so convert to CSC sparse matrix format
             X = csc_matrix(X)
 
         # compute data likelihood of not splitting and remember it as the best option so far
-        log_p_data_post_best = self.compute_log_p_data_post_no_split(y)
+        log_p_data_post_no_split = self._compute_log_p_data_post_no_split(y)
+        log_p_data_post_best = log_p_data_post_no_split
 
         # compute data likelihoods of all possible splits along all data dimensions
         n_dim = X.shape[1]
@@ -51,7 +55,7 @@ class BasePerpendicularNode(BaseNode, ABC):
             y_sorted = y[sort_indices]
 
             # compute data likelihoods of all possible splits along this dimension and find split with highest data likelihood
-            log_p_data_post_split = self.compute_log_p_data_post_split(y_sorted, split_indices, n_dim)
+            log_p_data_post_split = self._compute_log_p_data_post_split(y_sorted, split_indices, n_dim)
             i_max = log_p_data_post_split.argmax()
             if log_p_data_post_split[i_max] > log_p_data_post_best:
                 # remember new best split
@@ -67,19 +71,20 @@ class BasePerpendicularNode(BaseNode, ABC):
                 X_best_split = X_best_split.toarray().squeeze()
 
             sort_indices = np.argsort(X_best_split)
-            if not dense:
-                X = csr_matrix(X)  # because we are going to extract rows now where CSR is natural
-
-            X_sorted = X[sort_indices]
             y_sorted = y[sort_indices]
+            X_sorted = X[sort_indices]
+            if not dense:
+                # row accesses coming up, so convert to CSR sparse matrix format
+                X_sorted = csr_matrix(X_sorted)
+
             X1 = X_sorted[:best_split_index]
             X2 = X_sorted[best_split_index:]
             y1 = y_sorted[:best_split_index]
             y2 = y_sorted[best_split_index:]
 
             # compute posteriors of children and priors for further splitting
-            prior_child1 = self.compute_posterior(y1, delta)
-            prior_child2 = self.compute_posterior(y2, delta)
+            prior_child1 = self._compute_posterior(y1, delta)
+            prior_child2 = self._compute_posterior(y2, delta)
 
             # store split info, create children and continue training them if there's data left to split
             self.split_dimension = best_split_dimension
@@ -94,6 +99,8 @@ class BasePerpendicularNode(BaseNode, ABC):
                         X_sorted[best_split_index-1, :].toarray()[0][best_split_dimension]
                         + X_sorted[best_split_index, :].toarray()[0][best_split_dimension]
                 )
+            self.log_p_data_post_no_split = log_p_data_post_no_split
+            self.log_p_data_post_best = log_p_data_post_best
 
             self.child1 = self.child_type(self.partition_prior, prior_child1, self.level+1)
             self.child2 = self.child_type(self.partition_prior, prior_child2, self.level+1)
@@ -101,17 +108,18 @@ class BasePerpendicularNode(BaseNode, ABC):
             if X1.shape[0] > 1:
                 self.child1._fit(X1, y1, delta, verbose, feature_names)
             else:
-                self.child1.posterior = self.compute_posterior(y1)
+                self.child1.posterior = self._compute_posterior(y1)
 
             if X2.shape[0] > 1:
                 self.child2._fit(X2, y2, delta, verbose, feature_names)
             else:
-                self.child2.posterior = self.compute_posterior(y2)
+                self.child2.posterior = self._compute_posterior(y2)
 
         # compute posterior
-        self.posterior = self.compute_posterior(y)
+        self.n_dim = X.shape[1]
+        self.posterior = self._compute_posterior(y)
 
-    def compute_child1_and_child2_indices(self, X, dense):
+    def _compute_child1_and_child2_indices(self, X, dense):
         X_split = X[:, self.split_dimension]
         if not dense:
             X_split = X_split.toarray().squeeze()
@@ -121,28 +129,87 @@ class BasePerpendicularNode(BaseNode, ABC):
 
         return indices1, indices2
 
+    def is_leaf(self):
+        self._ensure_is_fitted()
+        return self.split_value is None
+
+    def feature_importance(self):
+        """
+        Compute and return feature importance of this tree after having fitted it to data. Feature
+        importance for a given feature dimension is defined as the sum of all increases in the
+        marginal data log-likelihood across splits of that dimension. Finally, the feature
+        importance vector is normalized to sum to 1.
+
+        Returns
+        -------
+        feature_importance: array of floats
+            The feature importance.
+        """
+
+        self._ensure_is_fitted()
+
+        feature_importance = np.zeros(self.n_dim)
+        self._update_feature_importance(feature_importance)
+        feature_importance /= feature_importance.sum()
+
+        return feature_importance
+
+    def _update_feature_importance(self, feature_importance):
+        if self.is_leaf():
+            return
+        else:
+            log_p_gain = self.log_p_data_post_best - self.log_p_data_post_no_split
+            feature_importance[self.split_dimension] += log_p_gain
+            if self.child1 is not None:
+                self.child1._update_feature_importance(feature_importance)
+                self.child2._update_feature_importance(feature_importance)
+
+    def _prune(self):
+        depth_and_leaves_start = self.depth_and_leaves()
+
+        if self.is_leaf():
+            return
+
+        if self.child1.is_leaf() and self.child2.is_leaf():
+            if self.child1._predict_leaf() == self.child2._predict_leaf():
+                # same prediction (class if classification, value if regression) -> no need to split
+                self.child1 = None
+                self.child2 = None
+                self.log_p_data_post_no_split = None
+                self.log_p_data_post_best = None
+
+                self.split_dimension = -1
+                self.split_value = None
+                self.split_feature_name = None
+        else:
+            self.child1._prune()
+            self.child2._prune()
+
+        if depth_and_leaves_start != self.depth_and_leaves():
+            # we did some pruning somewhere down this sub-tree -> prune again
+            self._prune()
+
     def __str__(self):
         return self._str([], self.split_value, '\u2523', '\u2517', '\u2503', '\u2265', None)
 
-    def _str(self, anchor, parent_split_value, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, is_first_child):
+    def _str(self, anchor, parent_split_value, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, is_left_child):
         anchor_str = ''.join(' ' + a for a in anchor)
         s = ''
-        if is_first_child is not None:
-            s += anchor_str + ' {}{}: '.format('<' if is_first_child else GEQ, parent_split_value)
+        if is_left_child is not None:
+            s += anchor_str + ' {}{}: '.format('<' if is_left_child else GEQ, parent_split_value)
 
         if self.is_leaf():
             s += 'y={}'.format(self._predict_leaf())
             if not self.is_regression:
-                s += ', p(y)={}'.format(self.predict_proba(parent_split_value)[0])
+                s += ', p(y)={}'.format(self._predict(None, predict_class=False)[0])
         else:
-            split_feature_name = self.split_feature_name
-            s += '{}={}'.format(split_feature_name, self.split_value)
+            s += '{}={}'.format(self.split_feature_name, self.split_value)
 
             s += '\n'
-            anchor_child1 = [VERT_RIGHT] if len(anchor) == 0 else (anchor[:-1] + [(BAR if is_first_child else '  '), VERT_RIGHT])
+            anchor_child1 = [VERT_RIGHT] if len(anchor) == 0 else (anchor[:-1] + [(BAR if is_left_child else '  '), VERT_RIGHT])
             s += self.child1._str(anchor_child1, self.split_value, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, True)
 
             s += '\n'
-            anchor_child2 = [DOWN_RIGHT] if len(anchor) == 0 else (anchor[:-1] + [(BAR if is_first_child else '  '), DOWN_RIGHT])
+            anchor_child2 = [DOWN_RIGHT] if len(anchor) == 0 else (anchor[:-1] + [(BAR if is_left_child else '  '), DOWN_RIGHT])
             s += self.child2._str(anchor_child2, self.split_value, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, False)
         return s

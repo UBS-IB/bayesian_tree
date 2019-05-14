@@ -21,7 +21,7 @@ if __name__ == '__main__':
     train = np.hstack((X_train, y_train))
     test = train
 
-    # # UCI dataset
+    # or, alternatively, load a UCI dataset
     # train, test = helper.load_ripley(proxies)
 
     n_dim = len(np.unique(train[:, -1]))
@@ -71,6 +71,6 @@ if __name__ == '__main__':
     # plot if 1D or 2D
     dimensions = X_train.shape[1]
     if dimensions == 1:
-        helper.plot_1d(root, X_train, y_train, info_train, X_test, y_test, info_test)
+        helper.plot_1d_perpendicular(root, X_train, y_train, info_train, X_test, y_test, info_test)
     elif dimensions == 2:
-        helper.plot_2d(root, X_train, y_train, info_train, X_test, y_test, info_test)
+        helper.plot_2d_perpendicular(root, X_train, y_train, info_train, X_test, y_test, info_test)

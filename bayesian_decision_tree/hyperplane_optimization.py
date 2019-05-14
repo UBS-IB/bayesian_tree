@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 import numpy as np
 from numpy.random import RandomState
 from scipy.sparse import csr_matrix, csc_matrix
-from scipy.stats import norm
 
 
 class HyperplaneOptimizationFunction:
@@ -14,64 +13,60 @@ class HyperplaneOptimizationFunction:
     data likelihood is maximized.
 
     """
-    def __init__(self, X, y, compute_log_p_data_post_split, log_p_data_post_all, is_scipy_optimizer):
+    def __init__(self, X, y, compute_log_p_data_post_split, log_p_data_post_all, search_space_is_unit_hypercube):
         self.X = X
         self.y = y
         self.compute_log_p_data_post_split = compute_log_p_data_post_split
         self.log_p_data_post_all = log_p_data_post_all
-        self.is_scipy_optimizer = is_scipy_optimizer
+        self.search_space_is_unit_hypercube = search_space_is_unit_hypercube
 
         # results of the optimization - to be set later during the actual optimization
+        self.function_evaluations = 0
         self.best_log_p_data_post = log_p_data_post_all
         self.best_cumulative_distances = 0
         self.best_hyperplane_normal = None
         self.best_hyperplane_origin = None
 
     def compute(self, hyperplane_normal):
-        if self.is_scipy_optimizer:
-            # If scipy optimizers tried to find hyperplane normal vectors directly in cartesian
-            # coordinate space (e.g. by providing bounds of the form -1 <= x[i] <= 1) the search space
-            # close to 'corners' of the hypercube would be larger than close to the axes. For a
-            # 2-D problem for example searching for normal vectors in the -1..1 unit square leads to
-            # more normal vector candidates close to diagonal angles compared to angles close to the
-            # vertical or horizontal for obvious reasons. In higher dimensions this problem becomes
-            # amplified, leading to significant distortion of the search space.
-            #
-            # In order to avoid this problem we do the following instead:
-            # - Scipy optimizers operate on the following unit hypercube space: 0 <= x[i] <= 1 [1]
-            # - Vectors from this space are transformed in the following way:
-            #   1. Each x[i] is converted to a standard normal using the inverse CDF of the standard
-            #      normal
-            #   2. The resulting vector is normalized to unit length
-            #
-            # This leads to a unit vector that, somewhat surprisingly, has *uniform* distribution
-            # on the hypersphere, see [2] for an explanation on why this is the case. This means
-            # that changes of a certain magnitude in the original vectors that scipy optimizers
-            # operate on lead to similarly-sized changes in angle space after the transformation,
-            # avoiding any over- or underweighting of certain directions.
-            #
-            # The disadvantage of this approach is that a hypersphere in N-dimensional space is
-            # being parameterized by a vector of size N, whereas such a hypersphere surface only has
-            # N-1 dimensions, so theoretically a vector of size N-1 is sufficient. This means that
-            # the optimizers are operating in a search space that is 1 dimension larger than
-            # necessary, meaning that an infinite number of vectors in their search space lead
-            # to the same solution (all vectors that, after the inverse CDF mapping described above,
-            # lead to the same vector).
-            #
-            # [1] In fact, we only provide *half* of a unit hypercube as bounds because it's
-            #     unnecessary to evaluate both the hyperplane normal vectors `x` and `-x` as they
-            #     represent the same hyperplane. We arbitrarily choose to limit the cartesian
-            #     space of the first dimension to be positive:
-            #
-            #         0.5 <= x[0] <= 1         <- leads to standard normal values >= 0
-            #                                     after transformation
-            #
-            #         0 <= x[i] <= 1, i > 0    <- all other dimensions may take any standard
-            #                                     normal value after transformation
-            #
-            # [2] See 'Alternative method 1': http://corysimon.github.io/articles/uniformdistn-on-sphere/
+        self.function_evaluations += 1
 
-            hyperplane_normal = norm.ppf(hyperplane_normal)  # 0..1 -> Normal(0, 1)
+        if self.search_space_is_unit_hypercube:
+            # see https://core.ac.uk/download/pdf/82404670.pdf, "Algorithm YPHL"
+            unif = hyperplane_normal.copy()  # unit hypercube vector
+            n_dim = len(unif)+1
+
+            x = np.zeros(n_dim)
+
+            half_hypersphere = True
+
+            if n_dim % 2 == 0:
+                # even
+                phi = np.pi*(unif[0]-0.5) if half_hypersphere else 2*np.pi*unif[0]
+                x[0:2] = np.cos(phi), np.sin(phi)
+
+                for i in range(1, n_dim//2):
+                    u = unif[2*i-1]
+                    h = u ** (1/(2*i))
+                    x[:2*i] *= h
+
+                    sqrt_rho = np.sqrt(max(0, 1-np.sum(x[:2*i]**2)))
+                    phi = 2*np.pi*unif[2*i]
+                    x[2*i:2*i+2] = np.array([sqrt_rho*np.cos(phi), sqrt_rho*np.sin(phi)])
+
+            else:
+                # odd
+                x[0] = 1 if half_hypersphere else 2*(unif[0] >= 0.5) - 1
+
+                for i in range(1, (n_dim+1)//2):
+                    u = unif[2*i-2]
+                    h = u ** (1/(2*i-1))
+                    x[:2*i-1] *= h
+
+                    sqrt_rho = np.sqrt(max(0, 1-np.sum(x[:2*i-1]**2)))
+                    phi = 2*np.pi*unif[2*i-1]
+                    x[2*i-1:2*i+1] = sqrt_rho*np.cos(phi), sqrt_rho*np.sin(phi)
+
+            hyperplane_normal = x
 
         # catch some special cases and normalize to unit length
         hyperplane_normal = np.nan_to_num(hyperplane_normal)
@@ -125,7 +120,20 @@ class HyperplaneOptimizationFunction:
         return -log_p_data_post_split[i_max]
 
 
-class HyperplaneOptimizer(ABC):
+class StrMixin:
+    """Auto-generate `__str__()` and `__repr__()` from attributes."""
+    def __str__(self):
+        attributes = ['{}={}'.format(k, v) for k, v in self.__dict__.items()]
+        return '{}[{}]'.format(type(self).__name__, ', '.join(attributes))
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class HyperplaneOptimizer(ABC, StrMixin):
+    def __init__(self, search_space_is_unit_hypercube):
+        self.search_space_is_unit_hypercube = search_space_is_unit_hypercube
+
     @abstractmethod
     def solve(self, optimization_function):
         pass
@@ -140,29 +148,32 @@ class ScipyOptimizer(HyperplaneOptimizer):
     """
 
     def __init__(self, solver_type, seed, **extra_solver_kwargs):
+        super().__init__(search_space_is_unit_hypercube=True)
+
         self.solver_type = solver_type
         self.seed = seed
         self.extra_solver_kwargs = extra_solver_kwargs
 
     def solve(self, optimization_function):
-        # bounds for scipy optimizers: half unit hypercube (will be mapped to
-        # half hypersphere uniformly later on)
+        # bounds for scipy optimizers: unit hypercube (will be mapped to
+        # (half) hypersphere uniformly later on)
         X = optimization_function.X
         n_dim = X.shape[1]
-        half_unit_hypercube_bounds = np.vstack((np.zeros(n_dim), np.ones(n_dim))).T
-        half_unit_hypercube_bounds[0, 0] = 0.5  # we need only evaluate half the hypersphere to cover all angles
+        unit_hypercube_bounds = np.vstack((np.zeros(n_dim-1), np.ones(n_dim-1))).T
 
         solver = self.solver_type(
             func=optimization_function.compute,
-            bounds=half_unit_hypercube_bounds,
+            bounds=unit_hypercube_bounds,
             seed=self.seed,
             **self.extra_solver_kwargs)
 
         solver.solve()
 
 
-class RandomTwoPointOptimizer:
+class RandomTwoPointOptimizer(HyperplaneOptimizer):
     def __init__(self, n_mc, seed):
+        super().__init__(search_space_is_unit_hypercube=False)
+
         self.n_mc = n_mc
         self.seed = seed
 
@@ -214,8 +225,10 @@ class RandomTwoPointOptimizer:
             optimization_function.compute(normal)
 
 
-class RandomHyperplaneOptimizer:
+class RandomHyperplaneOptimizer(HyperplaneOptimizer):
     def __init__(self, n_mc, seed):
+        super().__init__(search_space_is_unit_hypercube=False)
+
         self.n_mc = n_mc
         self.seed = seed
 
@@ -226,5 +239,159 @@ class RandomHyperplaneOptimizer:
         n_dim = X.shape[1]
 
         for i in range(self.n_mc):
-            normal = rand.normal(0, 1, n_dim)
-            optimization_function.compute(normal)
+            hyperplane_normal = rand.normal(0, 1, n_dim)
+            optimization_function.compute(hyperplane_normal)
+
+
+class MyOptimizer(HyperplaneOptimizer):
+    def __init__(self, n_scan, n_keep, spread_factor, seed):
+        super().__init__(search_space_is_unit_hypercube=True)
+
+        self.n_scan = n_scan
+        self.n_keep = n_keep
+        self.spread_factor = spread_factor
+        self.seed = seed
+
+    def solve(self, optimization_function):
+        rand = RandomState(self.seed)
+
+        X = optimization_function.X
+        n_dim = X.shape[1]-1
+
+        candidates = {}
+
+        no_improvements = 0
+        best_value = np.inf
+
+        f = 1
+        while no_improvements < 50:
+            if len(candidates) == 0:
+                # first run
+                for i in range(self.n_scan):
+                    candidate = rand.uniform(0, 1, n_dim)
+                    value = optimization_function.compute(candidate)
+                    candidates[value] = candidate
+            else:
+                # evolution
+                vectors = list(candidates.values())
+                ranges = [np.max([v[i] for v in vectors]) - np.min([v[i] for v in vectors]) for i in range(n_dim)]
+
+                values_sorted = sorted(candidates.keys())
+                best_value = values_sorted[0]
+                for i in range(self.n_keep):
+                    i_candidate = i*len(values_sorted)//self.n_keep
+                    candidate = candidates[values_sorted[i_candidate]]
+                    # perturbation = ranges * rand.uniform(-1, 1, len(ranges))
+                    perturbation = f * rand.uniform(-1, 1, len(ranges))
+                    new_candidate = candidate + perturbation
+                    new_candidate = np.clip(new_candidate, 0, 1)
+                    value = optimization_function.compute(new_candidate)
+                    candidates[value] = new_candidate
+                f *= self.spread_factor
+
+            # only keep the best candidates
+            values_sorted = sorted(candidates.keys())
+            values_sorted = values_sorted[:self.n_keep]
+            if values_sorted[0] < best_value:
+                no_improvements = 0
+            else:
+                no_improvements += 1
+
+            candidates = {v: candidates[v] for v in values_sorted}
+
+
+class GradientOptimizer(HyperplaneOptimizer):
+    def __init__(self, n_init, n_keep):
+        super().__init__(search_space_is_unit_hypercube=True)
+
+        self.n_init = n_init
+        self.n_keep = n_keep
+
+    def solve(self, optimization_function):
+        X = optimization_function.X
+        n_dim = X.shape[1]-1
+
+        rand = RandomState(666)
+
+        candidates = {}
+
+        no_improvements = 0
+        best_value = np.inf
+
+        start_delta = 1e-6
+        while no_improvements < 3:
+            if len(candidates) == 0:
+                # first run
+                for i in range(self.n_init):
+                    candidate = rand.uniform(0, 1, n_dim)
+                    value = optimization_function.compute(candidate)
+                    candidates[value] = candidate
+            else:
+                # compute numerical gradient for each of the best vectors
+                values_sorted = sorted(candidates.keys())
+                best_value = values_sorted[0]
+                for i in range(self.n_keep):
+                    i_candidate = i*len(values_sorted)//self.n_keep
+                    value = values_sorted[i_candidate]
+                    candidate = candidates[value]
+
+                    gradient = np.zeros(n_dim)
+                    delta = start_delta
+
+                    while True:
+                        delta_too_small = False
+
+                        for i_dim in range(n_dim):
+                            new_candidate = candidate.copy()
+                            new_candidate[i_dim] += delta
+                            if new_candidate[i_dim] > 1:
+                                delta *= -1
+                                new_candidate[i_dim] = candidate[i_dim] + delta
+
+                            new_value = optimization_function.compute(new_candidate)
+                            gradient[i_dim] = (new_value - value) / delta
+                            delta = np.abs(delta)
+                            if gradient[i_dim] == 0:
+                                delta_too_small = True
+                                break
+
+                        if delta_too_small:
+                            delta *= 10
+                            if delta >= 1:
+                                # can't compute gradient, so give up
+                                break
+                        else:
+                            break
+
+                    if delta_too_small:
+                        continue
+
+                    start_delta = delta / 10
+
+                    # add gradient to vector
+                    lambda_ = 1e-6
+                    best_new_candidate = candidate
+                    best_new_value = value
+                    while True:
+                        new_candidate = candidate - lambda_ * gradient
+                        new_candidate = np.clip(new_candidate, 0, 1)
+                        new_value = optimization_function.compute(new_candidate)
+                        if new_value < best_new_value:
+                            lambda_ *= 2
+                            best_new_candidate = new_candidate
+                            best_new_value = new_value
+                        else:
+                            break
+
+                    candidates[best_new_value] = best_new_candidate
+
+            # only keep the best candidates
+            values_sorted = sorted(candidates.keys())
+            values_sorted = values_sorted[:self.n_keep]
+            if values_sorted[0] < best_value:
+                no_improvements = 0
+            else:
+                no_improvements += 1
+
+            candidates = {v: candidates[v] for v in values_sorted}
+
