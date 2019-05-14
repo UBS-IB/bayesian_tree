@@ -27,6 +27,8 @@ class BaseNode(ABC, BaseEstimator):
         self.posterior = None
         self.child1 = None
         self.child2 = None
+        self.log_p_data_no_split = None
+        self.best_log_p_data_split = None
 
     def fit(self, X, y, delta=0.0, prune=False, verbose=False):
         """
@@ -249,11 +251,11 @@ class BaseNode(ABC, BaseEstimator):
         pass
 
     @abstractmethod
-    def _compute_log_p_data_post_no_split(self, y):
+    def _compute_log_p_data_no_split(self, y):
         pass
 
     @abstractmethod
-    def _compute_log_p_data_post_split(self, y, split_indices, n_dim):
+    def _compute_log_p_data_split(self, y, split_indices, n_dim):
         pass
 
     @abstractmethod

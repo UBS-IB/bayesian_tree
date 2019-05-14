@@ -6,8 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 ### Added
-- Support for arbitrarily oriented hyperplane splits rather than axis-perpendicular ones
+- Support for arbitrarily-oriented hyperplane splits rather than axis-perpendicular ones only
 - Experimental support for sparse DataFrames and sparse matrices (scipy.sparse) for fitting and prediction
+- Added `model.feature_importance()` for feature selection
+- All models now compatible with scikit-learn models
 
 ### Changed
 - Some

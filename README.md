@@ -21,7 +21,7 @@ This package implements:
     [PerpendicularRegressionNode](bayesian_decision_tree/classification.py)
      
   * **Hyperplane Trees**:
-    Decision/regression trees using _arbitrarily oriented hyperplanes_. These models
+    Decision/regression trees using _arbitrarily-oriented hyperplanes_. These models
     are more flexible than perpendicular trees as they cover a much larger search
     space.
     

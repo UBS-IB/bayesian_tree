@@ -1,10 +1,12 @@
 import numpy as np
+from scipy.optimize._differentialevolution import DifferentialEvolutionSolver
 from sklearn.metrics import accuracy_score
 
 from bayesian_decision_tree.classification import PerpendicularClassificationNode, HyperplaneClassificationNode
+from bayesian_decision_tree.hyperplane_optimization import SimulatedAnnealingOptimizer, ScipyOptimizer
 from examples import helper
 
-# demo script for classification (binary or multi-class)
+# demo script for classification (binary or multiclass) using arbitrarily oriented hyperplanes
 if __name__ == '__main__':
     # proxies (in case you're running this behind a firewall)
     args = helper.parse_args()
@@ -53,7 +55,7 @@ if __name__ == '__main__':
     y_test = test[:, -1]
 
     # prior
-    prior_pseudo_observations = 1
+    prior_pseudo_observations = 5
     prior = prior_pseudo_observations * np.ones(n_dim)
 
     # Bayesian decision tree parameters
@@ -61,19 +63,18 @@ if __name__ == '__main__':
     delta = 0
 
     # model
-    root = PerpendicularClassificationNode(partition_prior, prior)
-    # root = HyperplaneClassificationNode(partition_prior, prior)
+    model = HyperplaneClassificationNode(partition_prior, prior, optimizer=SimulatedAnnealingOptimizer(10, 10, 0.9, 666))
 
     # train
-    root.fit(X_train, y_train, delta)
-    print(root)
+    model.fit(X_train, y_train, delta, prune=True)
+    print(model)
     print()
-    print('Tree depth and number of leaves:', root.depth_and_leaves())
-    print('Feature importance:', root.feature_importance())
+    print('Tree depth and number of leaves:', model.depth_and_leaves())
+    print('Feature importance:', model.feature_importance())
 
     # compute accuracy
-    y_pred_train = root.predict(X_train)
-    y_pred_test = root.predict(X_test)
+    y_pred_train = model.predict(X_train)
+    y_pred_test = model.predict(X_test)
     accuracy_train = accuracy_score(y_train, y_pred_train)
     accuracy_test = accuracy_score(y_test, y_pred_test)
     info_train = 'Train accuracy: {:.4f} %'.format(100 * accuracy_train)
@@ -81,13 +82,7 @@ if __name__ == '__main__':
     print(info_train)
     print(info_test)
 
-    # plot if 1D or 2D
+    # plot if 2D
     dimensions = X_train.shape[1]
-    if dimensions == 1:
-        if isinstance(root, PerpendicularClassificationNode):
-            helper.plot_1d_perpendicular(root, X_train, y_train, info_train, X_test, y_test, info_test)
-    elif dimensions == 2:
-        if isinstance(root, PerpendicularClassificationNode):
-            helper.plot_2d_perpendicular(root, X_train, y_train, info_train, X_test, y_test, info_test)
-        else:
-            helper.plot_2d_hyperplane(root, X_train, y_train, info_train, X_test, y_test, info_test)
+    if dimensions == 2:
+        helper.plot_2d_hyperplane(model, X_train, y_train, info_train, X_test, y_test, info_test)

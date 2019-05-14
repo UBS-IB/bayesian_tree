@@ -13,16 +13,16 @@ class HyperplaneOptimizationFunction:
     data likelihood is maximized.
 
     """
-    def __init__(self, X, y, compute_log_p_data_post_split, log_p_data_post_all, search_space_is_unit_hypercube):
+    def __init__(self, X, y, compute_log_p_data_split, log_p_data_no_split, search_space_is_unit_hypercube):
         self.X = X
         self.y = y
-        self.compute_log_p_data_post_split = compute_log_p_data_post_split
-        self.log_p_data_post_all = log_p_data_post_all
+        self.compute_log_p_data_split = compute_log_p_data_split
+        self.log_p_data_no_split = log_p_data_no_split
         self.search_space_is_unit_hypercube = search_space_is_unit_hypercube
 
         # results of the optimization - to be set later during the actual optimization
         self.function_evaluations = 0
-        self.best_log_p_data_post = log_p_data_post_all
+        self.best_log_p_data_split = log_p_data_no_split
         self.best_cumulative_distances = 0
         self.best_hyperplane_normal = None
         self.best_hyperplane_origin = None
@@ -85,15 +85,15 @@ class HyperplaneOptimizationFunction:
         split_indices = 1 + np.where(np.diff(projections) != 0)[0]  # we can only split between *different* data points
         if len(split_indices) == 0:
             # no split possible along this dimension
-            return -self.log_p_data_post_all
+            return -self.log_p_data_no_split
 
         y_sorted = self.y[sort_indices]
 
         # compute data likelihoods of all possible splits along this projection and find split with highest data likelihood
         n_dim = self.X.shape[1]
-        log_p_data_post_split = self.compute_log_p_data_post_split(y_sorted, split_indices, n_dim)
-        i_max = log_p_data_post_split.argmax()
-        if log_p_data_post_split[i_max] >= self.best_log_p_data_post:
+        log_p_data_split = self.compute_log_p_data_split(y_sorted, split_indices, n_dim)
+        i_max = log_p_data_split.argmax()
+        if log_p_data_split[i_max] >= self.best_log_p_data_split:
             best_split_index = split_indices[i_max]
             p1 = self.X[sort_indices[best_split_index-1]]
             p2 = self.X[sort_indices[best_split_index]]
@@ -105,19 +105,19 @@ class HyperplaneOptimizationFunction:
             projections_with_origin = projections - np.dot(hyperplane_normal, hyperplane_origin)
             cumulative_distances = np.sum(np.abs(projections_with_origin))
 
-            if log_p_data_post_split[i_max] > self.best_log_p_data_post:
+            if log_p_data_split[i_max] > self.best_log_p_data_split:
                 is_log_p_better_or_same_but_with_better_distance = True
             else:
                 # accept new split with same log(p) only if it increases the cumulative distance of all points to the hyperplane
                 is_log_p_better_or_same_but_with_better_distance = cumulative_distances > self.best_cumulative_distances
 
             if is_log_p_better_or_same_but_with_better_distance:
-                self.best_log_p_data_post = log_p_data_post_split[i_max]
+                self.best_log_p_data_split = log_p_data_split[i_max]
                 self.best_cumulative_distances = cumulative_distances
                 self.best_hyperplane_normal = hyperplane_normal
                 self.best_hyperplane_origin = hyperplane_origin
 
-        return -log_p_data_post_split[i_max]
+        return -log_p_data_split[i_max]
 
 
 class StrMixin:
@@ -131,6 +131,9 @@ class StrMixin:
 
 
 class HyperplaneOptimizer(ABC, StrMixin):
+    """
+    The abstract base class of all hyperplane optimizers.
+    """
     def __init__(self, search_space_is_unit_hypercube):
         self.search_space_is_unit_hypercube = search_space_is_unit_hypercube
 
@@ -146,7 +149,6 @@ class ScipyOptimizer(HyperplaneOptimizer):
     ----------
     .. [1] https://docs.scipy.org/doc/scipy/reference/optimize.html#global-optimization
     """
-
     def __init__(self, solver_type, seed, **extra_solver_kwargs):
         super().__init__(search_space_is_unit_hypercube=True)
 
@@ -171,6 +173,11 @@ class ScipyOptimizer(HyperplaneOptimizer):
 
 
 class RandomTwoPointOptimizer(HyperplaneOptimizer):
+    """
+    An optimizer randomly choosing two points of different classes to construct
+    a bisecting hyperplane (experimental).
+    TODO: Complete
+    """
     def __init__(self, n_mc, seed):
         super().__init__(search_space_is_unit_hypercube=False)
 
@@ -226,6 +233,11 @@ class RandomTwoPointOptimizer(HyperplaneOptimizer):
 
 
 class RandomHyperplaneOptimizer(HyperplaneOptimizer):
+    """
+    An optimizer generating hyperplanes with random orientation
+    in space (experimental).
+    TODO: Complete
+    """
     def __init__(self, n_mc, seed):
         super().__init__(search_space_is_unit_hypercube=False)
 
@@ -248,7 +260,6 @@ class SimulatedAnnealingOptimizer(HyperplaneOptimizer):
     A simple simulated annealing optimizer (experimental).
     TODO: Complete
     """
-
     def __init__(self, n_scan, n_keep, spread_factor, seed):
         super().__init__(search_space_is_unit_hypercube=True)
 
@@ -305,7 +316,11 @@ class SimulatedAnnealingOptimizer(HyperplaneOptimizer):
             candidates = {v: candidates[v] for v in values_sorted}
 
 
-class GradientOptimizer(HyperplaneOptimizer):
+class GradientDescentOptimizer(HyperplaneOptimizer):
+    """
+    A simple gradient descent optimizer (experimental).
+    TODO: Complete
+    """
     def __init__(self, n_init, n_keep):
         super().__init__(search_space_is_unit_hypercube=True)
 
@@ -399,4 +414,3 @@ class GradientOptimizer(HyperplaneOptimizer):
                 no_improvements += 1
 
             candidates = {v: candidates[v] for v in values_sorted}
-

@@ -19,8 +19,6 @@ class BasePerpendicularNode(BaseNode, ABC):
         self.split_dimension = -1
         self.split_value = None
         self.split_feature_name = None
-        self.log_p_data_post_no_split = None
-        self.log_p_data_post_best = None
 
     def _fit(self, X, y, delta, verbose, feature_names):
         if verbose:
@@ -32,8 +30,8 @@ class BasePerpendicularNode(BaseNode, ABC):
             X = csc_matrix(X)
 
         # compute data likelihood of not splitting and remember it as the best option so far
-        log_p_data_post_no_split = self._compute_log_p_data_post_no_split(y)
-        log_p_data_post_best = log_p_data_post_no_split
+        log_p_data_no_split = self._compute_log_p_data_no_split(y)
+        best_log_p_data_split = log_p_data_no_split
 
         # compute data likelihoods of all possible splits along all data dimensions
         n_dim = X.shape[1]
@@ -55,11 +53,11 @@ class BasePerpendicularNode(BaseNode, ABC):
             y_sorted = y[sort_indices]
 
             # compute data likelihoods of all possible splits along this dimension and find split with highest data likelihood
-            log_p_data_post_split = self._compute_log_p_data_post_split(y_sorted, split_indices, n_dim)
-            i_max = log_p_data_post_split.argmax()
-            if log_p_data_post_split[i_max] > log_p_data_post_best:
+            log_p_data_split = self._compute_log_p_data_split(y_sorted, split_indices, n_dim)
+            i_max = log_p_data_split.argmax()
+            if log_p_data_split[i_max] > best_log_p_data_split:
                 # remember new best split
-                log_p_data_post_best = log_p_data_post_split[i_max]
+                best_log_p_data_split = log_p_data_split[i_max]
                 best_split_index = split_indices[i_max]  # data index of best split
                 best_split_dimension = dim
 
@@ -99,8 +97,8 @@ class BasePerpendicularNode(BaseNode, ABC):
                         X_sorted[best_split_index-1, :].toarray()[0][best_split_dimension]
                         + X_sorted[best_split_index, :].toarray()[0][best_split_dimension]
                 )
-            self.log_p_data_post_no_split = log_p_data_post_no_split
-            self.log_p_data_post_best = log_p_data_post_best
+            self.log_p_data_no_split = log_p_data_no_split
+            self.best_log_p_data_split = best_log_p_data_split
 
             self.child1 = self.child_type(self.partition_prior, prior_child1, self.level+1)
             self.child2 = self.child_type(self.partition_prior, prior_child2, self.level+1)
@@ -137,7 +135,7 @@ class BasePerpendicularNode(BaseNode, ABC):
         if self.is_leaf():
             return
         else:
-            log_p_gain = self.log_p_data_post_best - self.log_p_data_post_no_split
+            log_p_gain = self.best_log_p_data_split - self.log_p_data_no_split
             feature_importance[self.split_dimension] += log_p_gain
             if self.child1 is not None:
                 self.child1._update_feature_importance(feature_importance)
@@ -154,8 +152,8 @@ class BasePerpendicularNode(BaseNode, ABC):
                 # same prediction (class if classification, value if regression) -> no need to split
                 self.child1 = None
                 self.child2 = None
-                self.log_p_data_post_no_split = None
-                self.log_p_data_post_best = None
+                self.log_p_data_no_split = None
+                self.best_log_p_data_split = None
 
                 self.split_dimension = -1
                 self.split_value = None

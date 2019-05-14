@@ -25,7 +25,7 @@ class BaseRegressionNode(BaseNode, ABC, RegressorMixin):
     def _check_target(self, y):
         pass
 
-    def _compute_log_p_data_post_no_split(self, y):
+    def _compute_log_p_data_no_split(self, y):
         n = len(y)
         mean = y.mean()
 
@@ -36,7 +36,7 @@ class BaseRegressionNode(BaseNode, ABC, RegressorMixin):
 
         return log_p_prior + log_p_data
 
-    def _compute_log_p_data_post_split(self, y, split_indices, n_dim):
+    def _compute_log_p_data_split(self, y, split_indices, n_dim):
         n = len(y)
         n_splits = len(split_indices)
 
@@ -109,7 +109,8 @@ class BaseRegressionNode(BaseNode, ABC, RegressorMixin):
 
 class PerpendicularRegressionNode(BasePerpendicularNode, BaseRegressionNode):
     """
-    Bayesian regression tree. Uses a Normal-gamma(mu, kappa, alpha, beta) prior assuming unknown mean and unknown variance.
+    Bayesian regression tree using axes-normal splits ("perpendicular").
+    Uses a Normal-gamma(mu, kappa, alpha, beta) prior assuming unknown mean and unknown variance.
 
     Parameters
     ----------
@@ -138,8 +139,9 @@ class PerpendicularRegressionNode(BasePerpendicularNode, BaseRegressionNode):
 
     See also
     --------
-    demo_regression.py
-    ClassificationNode
+    demo_regression_perpendicular.py
+    PerpendicularClassificationNode
+    HyperplaneRegressionNode
 
     References
     ----------
@@ -161,17 +163,16 @@ class PerpendicularRegressionNode(BasePerpendicularNode, BaseRegressionNode):
     >>> sd_prior = ...
     >>>
     >>> # the number of prior pseudo-observations; set to roughly 1 - 10 % of the number of training samples
-    >>> prior_obs = ...
+    >>> prior_pseudo_observations = ...
     >>>
     >>> # now compute the prior
-    >>> kappa = prior_obs
-    >>> alpha = prior_obs/2
+    >>> kappa = prior_pseudo_observations
+    >>> alpha = prior_pseudo_observations/2
     >>> beta = alpha*sd_prior**2
     >>> prior = [mu, kappa, alpha, beta]
 
-    See also `demo_regression.py`.
+    See `demo_regression_perpendicular.py`.
     """
-
     def __init__(self, partition_prior, prior, level=0):
         child_type = PerpendicularRegressionNode
         BasePerpendicularNode.__init__(self, partition_prior, prior, child_type, True, level)
@@ -179,6 +180,67 @@ class PerpendicularRegressionNode(BasePerpendicularNode, BaseRegressionNode):
 
 
 class HyperplaneRegressionNode(BaseHyperplaneNode, BaseRegressionNode):
+    """
+    Bayesian regression tree using arbitrarily-oriented hyperplane splits.
+    Uses a Normal-gamma(mu, kappa, alpha, beta) prior assuming unknown mean and unknown variance.
+
+    Parameters
+    ----------
+    partition_prior : float, must be > 0.0 and < 1.0, typical value: 0.9
+        The prior probability of splitting a node's data into two children.
+
+        Small values tend to reduce the tree depth, leading to less expressiveness
+        but also to less overfitting.
+
+        Large values tend to increase the tree depth and thus lead to the tree
+        better fitting the data, which can lead to overfitting.
+
+    prior : array_like, shape = [4]
+        The prior hyperparameters [mu, kappa, alpha, beta] of the Normal-gamma
+        distribution (see also [1], [2], [3]):
+
+        - mu:    prior pseudo-observation sample mean
+        - kappa: prior pseudo-observation count used to compute mu
+        - alpha: (prior pseudo-observation count used to compute sample variance)/2
+        - beta:  alpha * (prior pseudo-observation sample variance)
+
+        It is usually easier to compute these hyperparameters off more intuitive
+        base quantities, see examples section.
+
+    optimizer : object
+        A global optimization algorithm object that performs optimal hyperparameter
+        orientation search. The available options are (in the order in which you should
+        try them):
+        - ScipyOptimizer: A wrapper around scipy global optimizers. See usages for examples.
+        - SimulatedAnnealingOptimizer: Experimental, but works well with n_scan=20, n_keep=10, spread_factor=0.95
+        - RandomHyperplaneOptimizer: Experimental, mediocre performance
+        - RandomTwoPointOptimizer: Experimental, mediocre performance
+        - GradientDescentOptimizer: Experimental, mediocre performance
+
+    level : DO NOT SET, ONLY USED BY SUBCLASSES
+
+    See also
+    --------
+    demo_regression_hyperplane.py
+    HyperplaneClassificationNode
+    PerpendicularRegressionNode
+
+    References
+    ----------
+
+    .. [1] https://en.wikipedia.org/wiki/Normal-gamma_distribution
+
+    .. [2] https://en.wikipedia.org/wiki/Normal-gamma_distribution#Interpretation_of_parameters
+
+    .. [3] https://en.wikipedia.org/wiki/Conjugate_prior#Continuous_distributions
+
+    Examples
+    --------
+    It is usually convenient to compute the prior hyperparameters in the same manner as for
+    the perpendicular case, see PerpendicularRegressionNode.
+
+    See `demo_regression_hyperplane.py`.
+    """
     def __init__(self, partition_prior, prior, optimizer=None, level=0):
         child_type = HyperplaneRegressionNode
         BaseHyperplaneNode.__init__(self, partition_prior, prior, child_type, True, optimizer, level)

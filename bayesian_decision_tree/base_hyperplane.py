@@ -35,14 +35,14 @@ class BaseHyperplaneNode(BaseNode, ABC):
             # column accesses coming up, so convert to CSC sparse matrix format
             X = csc_matrix(X)
 
-        log_p_data_post_all = self._compute_log_p_data_post_no_split(y)
+        log_p_data_no_split = self._compute_log_p_data_no_split(y)
 
         # the function to optimize (depends on X and y, hence we need to instantiate it for every data set anew)
         optimization_function = HyperplaneOptimizationFunction(
             X,
             y,
-            self._compute_log_p_data_post_split,
-            log_p_data_post_all,
+            self._compute_log_p_data_split,
+            log_p_data_no_split,
             self.optimizer.search_space_is_unit_hypercube)
 
         # create and run optimizer
@@ -62,7 +62,7 @@ class BaseHyperplaneNode(BaseNode, ABC):
                 """
                 Note: The reason why indices1 or indices2 could be empty is that the optimizer might find a
                 'split' that puts all data one one side and nothing on the other side, and that 'split' has
-                a higher log probability than 'log_p_data_post_all' because of the partition prior
+                a higher log probability than 'log_p_data_no_split' because of the partition prior
                 overwhelming the data likelihoods (which are of course identical between the 'all data' and
                 the 'everything on one side split' scenarios)s.
                 """
@@ -78,6 +78,9 @@ class BaseHyperplaneNode(BaseNode, ABC):
                 # store split info, create children and continue training them if there's data left to split
                 self.best_hyperplane_normal = optimization_function.best_hyperplane_normal
                 self.best_hyperplane_origin = optimization_function.best_hyperplane_origin
+
+                self.log_p_data_no_split = optimization_function.log_p_data_no_split
+                self.best_log_p_data_split = optimization_function.best_log_p_data_split
 
                 self.child1 = self.child_type(self.partition_prior, prior_child1, self.optimizer, self.level + 1)
                 self.child2 = self.child_type(self.partition_prior, prior_child2, self.optimizer, self.level + 1)
@@ -120,9 +123,12 @@ class BaseHyperplaneNode(BaseNode, ABC):
         if self.is_leaf():
             return
         else:
-            log_p_gain = self.log_p_data_post_best - self.log_p_data_post_no_split
-            normal = self.best_hyperplane_normal
-            feature_importance += np.array([log_p_gain * normal[dim] for dim in range(len(normal))])
+            log_p_gain = self.best_log_p_data_split - self.log_p_data_no_split
+            hyperplane_normal = self.best_hyperplane_normal
+
+            # the more the normal vector is oriented along a given dimension's axis the more
+            # important that dimension is, so weight log_p_gain with hyperplane_normal[i_dim]
+            feature_importance += log_p_gain * hyperplane_normal
             if self.child1 is not None:
                 self.child1._update_feature_importance(feature_importance)
                 self.child2._update_feature_importance(feature_importance)
@@ -138,8 +144,8 @@ class BaseHyperplaneNode(BaseNode, ABC):
                 # same prediction (class if classification, value if regression) -> no need to split
                 self.child1 = None
                 self.child2 = None
-                self.log_p_data_post_no_split = None
-                self.log_p_data_post_best = None
+                self.log_p_data_no_split = None
+                self.best_log_p_data_split = None
 
                 self.best_hyperplane_normal = None
                 self.best_hyperplane_origin = None
@@ -170,10 +176,10 @@ class BaseHyperplaneNode(BaseNode, ABC):
             # 'back' child (the child that is on the side of the hyperplane opposite to the normal vector, or projection < 0)
             s += '\n'
             anchor_child1 = [VERT_RIGHT] if len(anchor) == 0 else (anchor[:-1] + [(BAR if is_front_child else '  '), VERT_RIGHT])
-            s += self.child1._str(anchor_child1, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, False)
+            s += self.child1._str(anchor_child1, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, True)
 
             # 'front' child (the child that is on same side of the hyperplane as the normal vector, or projection >= 0)
             s += '\n'
             anchor_child2 = [DOWN_RIGHT] if len(anchor) == 0 else (anchor[:-1] + [(BAR if is_front_child else '  '), DOWN_RIGHT])
-            s += self.child2._str(anchor_child2, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, True)
+            s += self.child2._str(anchor_child2, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, False)
         return s

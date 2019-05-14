@@ -171,8 +171,8 @@ most significant ones. More can be found on Github
 ### Subprojects
 
 Versioneer has limited support for source trees in which `setup.py` is not in
-the root directory (e.g. `setup.py` and `.git/` are *not* siblings). The are
-two common reasons why `setup.py` might not be in the root:
+the model directory (e.g. `setup.py` and `.git/` are *not* siblings). The are
+two common reasons why `setup.py` might not be in the model:
 
 * Source trees which contain multiple subprojects, such as
   [Buildbot](https://github.com/buildbot/buildbot), which contains both
@@ -294,9 +294,9 @@ class VersioneerConfig:
 
 
 def get_root():
-    """Get the project root directory.
+    """Get the project model directory.
 
-    We require that all commands are run from the project root, i.e. the
+    We require that all commands are run from the project model, i.e. the
     directory that contains setup.py, setup.cfg, and versioneer.py .
     """
     root = os.path.realpath(os.path.abspath(os.getcwd()))
@@ -308,10 +308,10 @@ def get_root():
         setup_py = os.path.join(root, "setup.py")
         versioneer_py = os.path.join(root, "versioneer.py")
     if not (os.path.exists(setup_py) or os.path.exists(versioneer_py)):
-        err = ("Versioneer was unable to run the project root directory. "
+        err = ("Versioneer was unable to run the project model directory. "
                "Versioneer requires setup.py to be executed from "
                "its immediate directory (like 'python setup.py COMMAND'), "
-               "or in a way that lets it use sys.argv[0] to find the root "
+               "or in a way that lets it use sys.argv[0] to find the model "
                "(like 'python path/to/setup.py COMMAND').")
         raise VersioneerBadRootError(err)
     try:
@@ -524,7 +524,7 @@ def run_command(commands, args, cwd=None, verbose=False, hide_stderr=False,
     return stdout, p.returncode
 
 
-def versions_from_parentdir(parentdir_prefix, root, verbose):
+def versions_from_parentdir(parentdir_prefix, model, verbose):
     """Try to determine the version from the parent directory name.
 
     Source tarballs conventionally unpack into a directory that includes both
@@ -534,14 +534,14 @@ def versions_from_parentdir(parentdir_prefix, root, verbose):
     rootdirs = []
 
     for i in range(3):
-        dirname = os.path.basename(root)
+        dirname = os.path.basename(model)
         if dirname.startswith(parentdir_prefix):
             return {"version": dirname[len(parentdir_prefix):],
                     "full-revisionid": None,
                     "dirty": False, "error": None, "date": None}
         else:
-            rootdirs.append(root)
-            root = os.path.dirname(root)  # up a level
+            rootdirs.append(model)
+            model = os.path.dirname(model)  # up a level
 
     if verbose:
         print("Tried directories %%s but none started with prefix %%s" %%
@@ -634,8 +634,8 @@ def git_versions_from_keywords(keywords, tag_prefix, verbose):
 
 
 @register_vcs_handler("git", "pieces_from_vcs")
-def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
-    """Get version from 'git describe' in the root of the source tree.
+def git_pieces_from_vcs(tag_prefix, model, verbose, run_command=run_command):
+    """Get version from 'git describe' in the model of the source tree.
 
     This only gets called if the git-archive 'subst' keywords were *not*
     expanded, and _version.py hasn't already been rewritten with a short
@@ -645,11 +645,11 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
     if sys.platform == "win32":
         GITS = ["git.cmd", "git.exe"]
 
-    out, rc = run_command(GITS, ["rev-parse", "--git-dir"], cwd=root,
+    out, rc = run_command(GITS, ["rev-parse", "--git-dir"], cwd=model,
                           hide_stderr=True)
     if rc != 0:
         if verbose:
-            print("Directory %%s not under git control" %% root)
+            print("Directory %%s not under git control" %% model)
         raise NotThisMethod("'git rev-parse --git-dir' returned error")
 
     # if there is a tag matching tag_prefix, this yields TAG-NUM-gHEX[-dirty]
@@ -657,12 +657,12 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
     describe_out, rc = run_command(GITS, ["describe", "--tags", "--dirty",
                                           "--always", "--long",
                                           "--match", "%%s*" %% tag_prefix],
-                                   cwd=root)
+                                   cwd=model)
     # --long was added in git-1.5.5
     if describe_out is None:
         raise NotThisMethod("'git describe' failed")
     describe_out = describe_out.strip()
-    full_out, rc = run_command(GITS, ["rev-parse", "HEAD"], cwd=root)
+    full_out, rc = run_command(GITS, ["rev-parse", "HEAD"], cwd=model)
     if full_out is None:
         raise NotThisMethod("'git rev-parse' failed")
     full_out = full_out.strip()
@@ -714,12 +714,12 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
         # HEX: no tags
         pieces["closest-tag"] = None
         count_out, rc = run_command(GITS, ["rev-list", "HEAD", "--count"],
-                                    cwd=root)
+                                    cwd=model)
         pieces["distance"] = int(count_out)  # total number of commits
 
     # commit date: see ISO-8601 comment in git_versions_from_keywords()
     date = run_command(GITS, ["show", "-s", "--format=%%ci", "HEAD"],
-                       cwd=root)[0].strip()
+                       cwd=model)[0].strip()
     pieces["date"] = date.strip().replace(" ", "T", 1).replace(" ", "", 1)
 
     return pieces
@@ -897,7 +897,7 @@ def render(pieces, style):
 def get_versions():
     """Get version information or return default if unable to do so."""
     # I am in _version.py, which lives at ROOT/VERSIONFILE_SOURCE. If we have
-    # __file__, we can work backwards from there to the root. Some
+    # __file__, we can work backwards from there to the model. Some
     # py2exe/bbfreeze/non-CPython implementations don't do __file__, in which
     # case we can only use expanded keywords.
 
@@ -911,27 +911,27 @@ def get_versions():
         pass
 
     try:
-        root = os.path.realpath(__file__)
+        model = os.path.realpath(__file__)
         # versionfile_source is the relative path from the top of the source
         # tree (where the .git directory might live) to this file. Invert
-        # this to find the root from __file__.
+        # this to find the model from __file__.
         for i in cfg.versionfile_source.split('/'):
-            root = os.path.dirname(root)
+            model = os.path.dirname(model)
     except NameError:
         return {"version": "0+unknown", "full-revisionid": None,
                 "dirty": None,
-                "error": "unable to find root of source tree",
+                "error": "unable to find model of source tree",
                 "date": None}
 
     try:
-        pieces = git_pieces_from_vcs(cfg.tag_prefix, root, verbose)
+        pieces = git_pieces_from_vcs(cfg.tag_prefix, model, verbose)
         return render(pieces, cfg.style)
     except NotThisMethod:
         pass
 
     try:
         if cfg.parentdir_prefix:
-            return versions_from_parentdir(cfg.parentdir_prefix, root, verbose)
+            return versions_from_parentdir(cfg.parentdir_prefix, model, verbose)
     except NotThisMethod:
         pass
 
@@ -1027,7 +1027,7 @@ def git_versions_from_keywords(keywords, tag_prefix, verbose):
 
 @register_vcs_handler("git", "pieces_from_vcs")
 def git_pieces_from_vcs(tag_prefix, root, verbose, run_command=run_command):
-    """Get version from 'git describe' in the root of the source tree.
+    """Get version from 'git describe' in the model of the source tree.
 
     This only gets called if the git-archive 'subst' keywords were *not*
     expanded, and _version.py hasn't already been rewritten with a short
@@ -1396,7 +1396,7 @@ def render(pieces, style):
 
 
 class VersioneerBadRootError(Exception):
-    """The project root directory is unknown or missing key files."""
+    """The project model directory is unknown or missing key files."""
 
 
 def get_versions(verbose=False):

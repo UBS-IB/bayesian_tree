@@ -45,7 +45,7 @@ class BaseClassificationNode(BaseNode, ABC, ClassifierMixin):
     def _check_target(self, y):
         self._check_classification_target(y)
 
-    def _compute_log_p_data_post_no_split(self, y):
+    def _compute_log_p_data_no_split(self, y):
         alphas = self.prior
         alphas_post = self._compute_posterior(y)
 
@@ -56,7 +56,7 @@ class BaseClassificationNode(BaseNode, ABC, ClassifierMixin):
 
         return log_p_prior + log_p_data
 
-    def _compute_log_p_data_post_split(self, y, split_indices, n_dim):
+    def _compute_log_p_data_split(self, y, split_indices, n_dim):
         n_splits = len(split_indices)
 
         alphas = self.prior
@@ -137,9 +137,9 @@ class PerpendicularClassificationNode(BasePerpendicularNode, BaseClassificationN
 
     See also
     --------
-    demo_classification.py
-    BinaryClassificationNode
-    RegressionNode
+    demo_classification_perpendicular.py
+    PerpendicularRegressionNode
+    HyperplaneClassificationNode
 
     References
     ----------
@@ -150,9 +150,8 @@ class PerpendicularClassificationNode(BasePerpendicularNode, BaseClassificationN
 
     Examples
     --------
-    See `demo_classification.py`.
+    See `demo_classification_perpendicular.py`.
     """
-
     def __init__(self, partition_prior, prior, level=0):
         child_type = PerpendicularClassificationNode
         BasePerpendicularNode.__init__(self, partition_prior, prior, child_type, False, level)
@@ -160,6 +159,62 @@ class PerpendicularClassificationNode(BasePerpendicularNode, BaseClassificationN
 
 
 class HyperplaneClassificationNode(BaseHyperplaneNode, BaseClassificationNode):
+    """
+    Bayesian binary or multiclass classification tree using arbitrarily-oriented
+    hyperplane splits. Uses a Dirichlet prior (a multivariate generalization
+    of the Beta prior for more than 2 variables).
+
+    Parameters
+    ----------
+    partition_prior : float, must be > 0.0 and < 1.0, typical value: 0.9
+        The prior probability of splitting a node's data into two children.
+
+        Small values tend to reduce the tree depth, leading to less expressiveness
+        but also to less overfitting.
+
+        Large values tend to increase the tree depth and thus lead to the tree
+        better fitting the data, which can lead to overfitting.
+
+    prior : array_like, shape = [number of classes]
+        The hyperparameters [alpha_0, alpha_1, ..., alpha_{N-1}] of the Dirichlet
+        conjugate prior, see [1] and [2]. All alpha_i must be positive, where
+        alpha_i represents the number of prior pseudo-observations of class i.
+
+        Small values for alpha_i represent a weak prior which leads to the
+        training data dominating the posterior. This can lead to overfitting.
+
+        Large values for alpha_i represent a strong prior and thus put less weight
+        on the data. This can be used for regularization.
+
+    optimizer : object
+        A global optimization algorithm object that performs optimal hyperparameter
+        orientation search. The available options are (in the order in which you should
+        try them):
+        - ScipyOptimizer: A wrapper around scipy global optimizers. See usages for examples.
+        - SimulatedAnnealingOptimizer: Experimental, but works well with n_scan=20, n_keep=10, spread_factor=0.95
+        - RandomHyperplaneOptimizer: Experimental, mediocre performance
+        - RandomTwoPointOptimizer: Experimental, mediocre performance
+        - GradientDescentOptimizer: Experimental, mediocre performance
+
+    level : DO NOT SET, ONLY USED BY SUBCLASSES
+
+    See also
+    --------
+    demo_classification_hyperplane.py
+    HyperplaneRegressionNode
+    PerpendicularClassificationNode
+
+    References
+    ----------
+
+    .. [1] https://en.wikipedia.org/wiki/Dirichlet_distribution#Conjugate_to_categorical/multinomial
+
+    .. [2] https://en.wikipedia.org/wiki/Conjugate_prior#Discrete_distributions
+
+    Examples
+    --------
+    See `demo_classification_perpendicular.py`.
+    """
     def __init__(self, partition_prior, prior, optimizer=None, level=0):
         child_type = HyperplaneClassificationNode
         BaseHyperplaneNode.__init__(self, partition_prior, prior, child_type, False, optimizer, level)
