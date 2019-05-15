@@ -8,8 +8,9 @@ This package implements:
 * Regression
 * Both models are available in two versions respectively:
   * **Perpendicular Trees**:
-    The classic decision/regression tree structure with splis along a single
-    feature dimension, analogous to e.g. the sklearn
+    The classic decision/regression tree structure with splits along a single
+    feature dimension (i.e., _perpendicular_ to a feature dimension axis),
+    analogous to e.g. the sklearn
     [decision](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html)
     and
     [regression](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeRegressor.html)
