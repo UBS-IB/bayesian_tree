@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize._differentialevolution import DifferentialEvolutionSolver
 from sklearn.metrics import accuracy_score
 
-from bayesian_decision_tree.classification import PerpendicularClassificationNode, HyperplaneClassificationNode
+from bayesian_decision_tree.classification import PerpendicularClassificationTree, HyperplaneClassificationTree
 from bayesian_decision_tree.hyperplane_optimization import SimulatedAnnealingOptimizer, ScipyOptimizer
 from examples import helper
 
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     delta = 0
 
     # model
-    model = HyperplaneClassificationNode(partition_prior, prior, optimizer=SimulatedAnnealingOptimizer(10, 10, 0.9, 666))
+    model = HyperplaneClassificationTree(partition_prior, prior, optimizer=SimulatedAnnealingOptimizer(10, 10, 0.9, 666))
 
     # train
     model.fit(X_train, y_train, delta, prune=True)

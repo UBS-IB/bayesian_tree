@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.metrics import mean_squared_error
 
-from bayesian_decision_tree.regression import PerpendicularRegressionNode
+from bayesian_decision_tree.regression import PerpendicularRegressionTree
 from examples import helper
 
 # demo script for regression using classic, axis-normal splits
@@ -52,7 +52,7 @@ if __name__ == '__main__':
     delta = 0
 
     # model
-    model = PerpendicularRegressionNode(partition_prior, prior)
+    model = PerpendicularRegressionTree(partition_prior, prior)
 
     # train
     model.fit(X_train, y_train, delta)

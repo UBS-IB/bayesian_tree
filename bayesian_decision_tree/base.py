@@ -6,10 +6,13 @@ from scipy.sparse import csr_matrix, csc_matrix
 from sklearn.base import BaseEstimator
 
 
-class BaseNode(ABC, BaseEstimator):
+class BaseTree(ABC, BaseEstimator):
     """
-    The base class for all Bayesian decision tree algorithms (classification and regression). Performs all the high-level fitting
-    and prediction tasks and outsources the low-level work to the subclasses.
+    Abstract base class of all Bayesian decision tree models (classification and regression). Performs all
+    high-level fitting and prediction tasks and outsources the medium- and low-level work to subclasses.
+
+    Implementation note: This class hierarchy is diamond-shaped: The four concrete model classes each
+    inherit from two superclasses which in turn inherit from this class.
     """
 
     def __init__(self, partition_prior, prior, child_type, is_regression, level):
@@ -130,6 +133,7 @@ class BaseNode(ABC, BaseEstimator):
         feature_importance: array of floats
             The feature importance.
         """
+
         self._ensure_is_fitted()
 
         feature_importance = np.zeros(self.n_dim)

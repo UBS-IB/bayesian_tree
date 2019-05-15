@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.metrics import mean_squared_error
 
 from bayesian_decision_tree.hyperplane_optimization import SimulatedAnnealingOptimizer
-from bayesian_decision_tree.regression import HyperplaneRegressionNode
+from bayesian_decision_tree.regression import HyperplaneRegressionTree
 from examples import helper
 
 # demo script for regression using using arbitrarily oriented hyperplanes
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     delta = 0
 
     # model
-    model = HyperplaneRegressionNode(partition_prior, prior, optimizer=SimulatedAnnealingOptimizer(10, 10, 0.9, 666))
+    model = HyperplaneRegressionTree(partition_prior, prior, optimizer=SimulatedAnnealingOptimizer(10, 10, 0.9, 666))
 
     # train
     model.fit(X_train, y_train, delta)

@@ -1,6 +1,6 @@
 """
-A collection of publicly available data sets to test classification algorithms on and some helper
-functions for plotting.
+A collection of publicly available data sets to test classification models on,
+ plus some helper functions for plotting.
 """
 import argparse
 

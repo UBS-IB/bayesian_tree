@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.metrics import accuracy_score
 
-from bayesian_decision_tree.classification import PerpendicularClassificationNode
+from bayesian_decision_tree.classification import PerpendicularClassificationTree
 from examples import helper
 
 # demo script for classification (binary or multiclass) using classic, axis-normal splits
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     delta = 0
 
     # model
-    model = PerpendicularClassificationNode(partition_prior, prior)
+    model = PerpendicularClassificationTree(partition_prior, prior)
 
     # train
     model.fit(X_train, y_train, delta)

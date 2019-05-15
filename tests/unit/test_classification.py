@@ -3,13 +3,13 @@ from unittest import TestCase
 import numpy as np
 from numpy.testing import assert_array_equal, assert_array_almost_equal
 
-from bayesian_decision_tree.classification import PerpendicularClassificationNode
-from tests.unit.helper import data_matrix_transforms, create_classification_models
+from bayesian_decision_tree.classification import PerpendicularClassificationTree
+from tests.unit.helper import data_matrix_transforms, create_classification_trees
 
 
-class ClassificationNodeTest(TestCase):
+class ClassificationTreeTest(TestCase):
     def test_cannot_predict_before_training(self):
-        for model in create_classification_models(np.array([1, 1]), 0.5):
+        for model in create_classification_trees(np.array([1, 1]), 0.5):
             # can't predict yet
             try:
                 model.predict([])
@@ -26,7 +26,7 @@ class ClassificationNodeTest(TestCase):
 
     def test_cannot_predict_with_bad_input_dimensions(self):
         for data_matrix_transform in data_matrix_transforms:
-            for model in create_classification_models(np.array([1, 1]), 0.5):
+            for model in create_classification_trees(np.array([1, 1]), 0.5):
                 Xy = np.array([
                     [0.0, 0.0, 0],
                     [0.0, 1.0, 1],
@@ -65,7 +65,7 @@ class ClassificationNodeTest(TestCase):
 
     def test_no_split(self):
         for data_matrix_transform in data_matrix_transforms:
-            for model in create_classification_models(np.array([1, 1]), 0.5):
+            for model in create_classification_trees(np.array([1, 1]), 0.5):
                 Xy = np.array([
                     [0.0, 0, 0],
                     [0.0, 1, 1],
@@ -87,7 +87,7 @@ class ClassificationNodeTest(TestCase):
                 self.assertIsNone(model.child1)
                 self.assertIsNone(model.child2)
 
-                if isinstance(model, PerpendicularClassificationNode):
+                if isinstance(model, PerpendicularClassificationTree):
                     self.assertEqual(model.split_dimension, -1)
                     self.assertEqual(model.split_value, None)
                 else:
@@ -114,7 +114,7 @@ class ClassificationNodeTest(TestCase):
 
     def test_one_split(self):
         for data_matrix_transform in data_matrix_transforms:
-            for model in create_classification_models(np.array([1, 1]), 0.7):
+            for model in create_classification_trees(np.array([1, 1]), 0.7):
                 Xy = np.array([
                     [0.0, 0, 0],
                     [0.1, 1, 0],
@@ -141,7 +141,7 @@ class ClassificationNodeTest(TestCase):
                 self.assertIsNone(model.child2.child1)
                 self.assertIsNone(model.child2.child2)
 
-                if isinstance(model, PerpendicularClassificationNode):
+                if isinstance(model, PerpendicularClassificationTree):
                     self.assertEqual(model.split_dimension, 0)
                     self.assertEqual(model.split_value, 0.5)
                 else:
@@ -167,7 +167,7 @@ class ClassificationNodeTest(TestCase):
 
     def test_two_splits(self):
         for data_matrix_transform in data_matrix_transforms:
-            for model in create_classification_models(np.array([1, 1]), 0.9):
+            for model in create_classification_trees(np.array([1, 1]), 0.9):
                 Xy = np.array([
                     [0.0, 0.0, 0],
                     [0.1, 1.0, 0],
@@ -191,7 +191,7 @@ class ClassificationNodeTest(TestCase):
                 model.fit(X, y, prune=True)
                 print(model)
 
-                if isinstance(model, PerpendicularClassificationNode):
+                if isinstance(model, PerpendicularClassificationTree):
                     self.assertEqual(model.depth_and_leaves(), (2, 3))
 
                     self.assertIsNotNone(model.child1)

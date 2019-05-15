@@ -1,22 +1,23 @@
 """
-This module declares the Bayesian classification tree algorithms:
-
-* ClassificationNode
+This module declares the Bayesian classification tree models:
+* PerpendicularClassificationTree
+* HyperplaneClassificationTree
 """
 from abc import ABC
 
 import numpy as np
 from sklearn.base import ClassifierMixin
 
-from bayesian_decision_tree.base import BaseNode
-from bayesian_decision_tree.base_hyperplane import BaseHyperplaneNode
-from bayesian_decision_tree.base_perpendicular import BasePerpendicularNode
+from bayesian_decision_tree.base import BaseTree
+from bayesian_decision_tree.base_hyperplane import BaseHyperplaneTree
+from bayesian_decision_tree.base_perpendicular import BasePerpendicularTree
 from bayesian_decision_tree.utils import multivariate_betaln
 
 
-class BaseClassificationNode(BaseNode, ABC, ClassifierMixin):
+class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
     """
-    Abstract base class for all classification trees (perpendicular and hyperplane).
+    Abstract base class of all Bayesian classification trees (perpendicular and hyperplane). Performs
+    medium-level fitting and prediction tasks and outsources the low-level work to subclasses.
     """
 
     def __init__(self, partition_prior, prior, child_type, level=0):
@@ -106,7 +107,7 @@ class BaseClassificationNode(BaseNode, ABC, ClassifierMixin):
         return np.argmax(self.posterior)
 
 
-class PerpendicularClassificationNode(BasePerpendicularNode, BaseClassificationNode):
+class PerpendicularClassificationTree(BasePerpendicularTree, BaseClassificationTree):
     """
     Bayesian binary or multiclass classification tree. Uses a Dirichlet prior (a
     multivariate generalization of the Beta prior for more than 2 variables).
@@ -138,8 +139,8 @@ class PerpendicularClassificationNode(BasePerpendicularNode, BaseClassificationN
     See also
     --------
     demo_classification_perpendicular.py
-    PerpendicularRegressionNode
-    HyperplaneClassificationNode
+    PerpendicularRegressionTree
+    HyperplaneClassificationTree
 
     References
     ----------
@@ -152,13 +153,14 @@ class PerpendicularClassificationNode(BasePerpendicularNode, BaseClassificationN
     --------
     See `demo_classification_perpendicular.py`.
     """
+
     def __init__(self, partition_prior, prior, level=0):
-        child_type = PerpendicularClassificationNode
-        BasePerpendicularNode.__init__(self, partition_prior, prior, child_type, False, level)
-        BaseClassificationNode.__init__(self, partition_prior, prior, child_type, level)
+        child_type = PerpendicularClassificationTree
+        BasePerpendicularTree.__init__(self, partition_prior, prior, child_type, False, level)
+        BaseClassificationTree.__init__(self, partition_prior, prior, child_type, level)
 
 
-class HyperplaneClassificationNode(BaseHyperplaneNode, BaseClassificationNode):
+class HyperplaneClassificationTree(BaseHyperplaneTree, BaseClassificationTree):
     """
     Bayesian binary or multiclass classification tree using arbitrarily-oriented
     hyperplane splits. Uses a Dirichlet prior (a multivariate generalization
@@ -201,8 +203,8 @@ class HyperplaneClassificationNode(BaseHyperplaneNode, BaseClassificationNode):
     See also
     --------
     demo_classification_hyperplane.py
-    HyperplaneRegressionNode
-    PerpendicularClassificationNode
+    HyperplaneRegressionTree
+    PerpendicularClassificationTree
 
     References
     ----------
@@ -215,7 +217,8 @@ class HyperplaneClassificationNode(BaseHyperplaneNode, BaseClassificationNode):
     --------
     See `demo_classification_perpendicular.py`.
     """
+
     def __init__(self, partition_prior, prior, optimizer=None, level=0):
-        child_type = HyperplaneClassificationNode
-        BaseHyperplaneNode.__init__(self, partition_prior, prior, child_type, False, optimizer, level)
-        BaseClassificationNode.__init__(self, partition_prior, prior, child_type, level)
+        child_type = HyperplaneClassificationTree
+        BaseHyperplaneTree.__init__(self, partition_prior, prior, child_type, False, optimizer, level)
+        BaseClassificationTree.__init__(self, partition_prior, prior, child_type, level)

@@ -3,17 +3,18 @@ from abc import ABC
 import numpy as np
 from scipy.sparse import csr_matrix, csc_matrix
 
-from bayesian_decision_tree.base import BaseNode
+from bayesian_decision_tree.base import BaseTree
 
 
-class BasePerpendicularNode(BaseNode, ABC):
+class BasePerpendicularTree(BaseTree, ABC):
     """
-    The base class for all Bayesian decision tree algorithms (classification and regression). Performs all the high-level fitting
-    and prediction tasks and outsources the low-level work to the subclasses.
+    Abstract base class of all Bayesian tree models using splits perpendicular to a single feature axis
+    (classification and regression). Performs  medium-level fitting and prediction tasks and outsources
+    the low-level work to subclasses.
     """
 
     def __init__(self, partition_prior, prior, child_type, is_regression, level):
-        BaseNode.__init__(self, partition_prior, prior, child_type, is_regression, level)
+        BaseTree.__init__(self, partition_prior, prior, child_type, is_regression, level)
 
         # to be set later
         self.split_dimension = -1

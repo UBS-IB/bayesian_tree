@@ -11,8 +11,8 @@ class HyperplaneOptimizationFunction:
     the normal vector of a hyperplane in `n_dim` dimensions. Given such a hyperplane normal the function
     computes the optimum split location (i.e., the origin of the hyperplane) in the data such that the
     data likelihood is maximized.
-
     """
+
     def __init__(self, X, y, compute_log_p_data_split, log_p_data_no_split, search_space_is_unit_hypercube):
         self.X = X
         self.y = y
@@ -132,8 +132,9 @@ class StrMixin:
 
 class HyperplaneOptimizer(ABC, StrMixin):
     """
-    The abstract base class of all hyperplane optimizers.
+    Abstract base class of all hyperplane optimizers.
     """
+
     def __init__(self, search_space_is_unit_hypercube):
         self.search_space_is_unit_hypercube = search_space_is_unit_hypercube
 
@@ -149,6 +150,7 @@ class ScipyOptimizer(HyperplaneOptimizer):
     ----------
     .. [1] https://docs.scipy.org/doc/scipy/reference/optimize.html#global-optimization
     """
+
     def __init__(self, solver_type, seed, **extra_solver_kwargs):
         super().__init__(search_space_is_unit_hypercube=True)
 
@@ -178,6 +180,7 @@ class RandomTwoPointOptimizer(HyperplaneOptimizer):
     a bisecting hyperplane (experimental).
     TODO: Complete
     """
+
     def __init__(self, n_mc, seed):
         super().__init__(search_space_is_unit_hypercube=False)
 
@@ -238,6 +241,7 @@ class RandomHyperplaneOptimizer(HyperplaneOptimizer):
     in space (experimental).
     TODO: Complete
     """
+
     def __init__(self, n_mc, seed):
         super().__init__(search_space_is_unit_hypercube=False)
 
@@ -260,6 +264,7 @@ class SimulatedAnnealingOptimizer(HyperplaneOptimizer):
     A simple simulated annealing optimizer (experimental).
     TODO: Complete
     """
+
     def __init__(self, n_scan, n_keep, spread_factor, seed):
         super().__init__(search_space_is_unit_hypercube=True)
 
@@ -321,6 +326,7 @@ class GradientDescentOptimizer(HyperplaneOptimizer):
     A simple gradient descent optimizer (experimental).
     TODO: Complete
     """
+
     def __init__(self, n_init, n_keep):
         super().__init__(search_space_is_unit_hypercube=True)
 

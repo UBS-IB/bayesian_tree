@@ -1,7 +1,7 @@
 """
-This module declares the Bayesian regression tree algorithm:
-
-* RegressionNode
+This module declares the Bayesian regression tree models:
+* PerpendicularRegressionTree
+* HyperplaneRegressionTree
 """
 from abc import ABC
 
@@ -9,14 +9,15 @@ import numpy as np
 from scipy.special import gammaln
 from sklearn.base import RegressorMixin
 
-from bayesian_decision_tree.base import BaseNode
-from bayesian_decision_tree.base_hyperplane import BaseHyperplaneNode
-from bayesian_decision_tree.base_perpendicular import BasePerpendicularNode
+from bayesian_decision_tree.base import BaseTree
+from bayesian_decision_tree.base_hyperplane import BaseHyperplaneTree
+from bayesian_decision_tree.base_perpendicular import BasePerpendicularTree
 
 
-class BaseRegressionNode(BaseNode, ABC, RegressorMixin):
+class BaseRegressionTree(BaseTree, ABC, RegressorMixin):
     """
-    Abstract base class for all classification trees (perpendicular and hyperplane).
+    Abstract base class of all Bayesian regression trees (perpendicular and hyperplane). Performs
+    medium-level fitting and prediction tasks and outsources the low-level work to subclasses.
     """
 
     def __init__(self, partition_prior, prior, child_type, level=0):
@@ -107,7 +108,7 @@ class BaseRegressionNode(BaseNode, ABC, RegressorMixin):
         return self._compute_posterior_mean()
 
 
-class PerpendicularRegressionNode(BasePerpendicularNode, BaseRegressionNode):
+class PerpendicularRegressionTree(BasePerpendicularTree, BaseRegressionTree):
     """
     Bayesian regression tree using axes-normal splits ("perpendicular").
     Uses a Normal-gamma(mu, kappa, alpha, beta) prior assuming unknown mean and unknown variance.
@@ -140,8 +141,8 @@ class PerpendicularRegressionNode(BasePerpendicularNode, BaseRegressionNode):
     See also
     --------
     demo_regression_perpendicular.py
-    PerpendicularClassificationNode
-    HyperplaneRegressionNode
+    PerpendicularClassificationTree
+    HyperplaneRegressionTree
 
     References
     ----------
@@ -173,13 +174,14 @@ class PerpendicularRegressionNode(BasePerpendicularNode, BaseRegressionNode):
 
     See `demo_regression_perpendicular.py`.
     """
+
     def __init__(self, partition_prior, prior, level=0):
-        child_type = PerpendicularRegressionNode
-        BasePerpendicularNode.__init__(self, partition_prior, prior, child_type, True, level)
-        BaseRegressionNode.__init__(self, partition_prior, prior, child_type, level)
+        child_type = PerpendicularRegressionTree
+        BasePerpendicularTree.__init__(self, partition_prior, prior, child_type, True, level)
+        BaseRegressionTree.__init__(self, partition_prior, prior, child_type, level)
 
 
-class HyperplaneRegressionNode(BaseHyperplaneNode, BaseRegressionNode):
+class HyperplaneRegressionTree(BaseHyperplaneTree, BaseRegressionTree):
     """
     Bayesian regression tree using arbitrarily-oriented hyperplane splits.
     Uses a Normal-gamma(mu, kappa, alpha, beta) prior assuming unknown mean and unknown variance.
@@ -222,8 +224,8 @@ class HyperplaneRegressionNode(BaseHyperplaneNode, BaseRegressionNode):
     See also
     --------
     demo_regression_hyperplane.py
-    HyperplaneClassificationNode
-    PerpendicularRegressionNode
+    HyperplaneClassificationTree
+    PerpendicularRegressionTree
 
     References
     ----------
@@ -237,11 +239,12 @@ class HyperplaneRegressionNode(BaseHyperplaneNode, BaseRegressionNode):
     Examples
     --------
     It is usually convenient to compute the prior hyperparameters in the same manner as for
-    the perpendicular case, see PerpendicularRegressionNode.
+    the perpendicular case, see PerpendicularRegressionTree.
 
     See `demo_regression_hyperplane.py`.
     """
+
     def __init__(self, partition_prior, prior, optimizer=None, level=0):
-        child_type = HyperplaneRegressionNode
-        BaseHyperplaneNode.__init__(self, partition_prior, prior, child_type, True, optimizer, level)
-        BaseRegressionNode.__init__(self, partition_prior, prior, child_type, level)
+        child_type = HyperplaneRegressionTree
+        BaseHyperplaneTree.__init__(self, partition_prior, prior, child_type, True, optimizer, level)
+        BaseRegressionTree.__init__(self, partition_prior, prior, child_type, level)

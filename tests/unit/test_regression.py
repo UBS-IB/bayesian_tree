@@ -4,11 +4,11 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from sklearn.metrics import mean_squared_error
 
-from bayesian_decision_tree.regression import PerpendicularRegressionNode
-from tests.unit.helper import data_matrix_transforms, create_regression_models
+from bayesian_decision_tree.regression import PerpendicularRegressionTree
+from tests.unit.helper import data_matrix_transforms, create_regression_trees
 
 
-class RegressionNodeTest(TestCase):
+class RegressionTreeTest(TestCase):
     def test_cannot_predict_before_training(self):
         mu = 0
         sd_prior = 1
@@ -21,7 +21,7 @@ class RegressionNodeTest(TestCase):
 
         prior = np.array([mu, kappa, alpha, beta])
 
-        for model in create_regression_models(prior, 0.5):
+        for model in create_regression_trees(prior, 0.5):
             # can't predict yet
             try:
                 model.predict([])
@@ -42,7 +42,7 @@ class RegressionNodeTest(TestCase):
         prior = np.array([mu, kappa, alpha, beta])
 
         for data_matrix_transform in data_matrix_transforms:
-            for model in create_regression_models(prior, 0.5):
+            for model in create_regression_trees(prior, 0.5):
                 Xy = np.array([
                     [0.0, 0.0, 0],
                     [0.0, 1.0, 1],
@@ -92,7 +92,7 @@ class RegressionNodeTest(TestCase):
 
             prior = np.array([mu, kappa, alpha, beta])
 
-            for model in create_regression_models(prior, 0.5):
+            for model in create_regression_trees(prior, 0.5):
                 Xy = np.array([
                     [0.0, 0.0, 0],
                     [0.1, 0.1, 1.3],
@@ -114,7 +114,7 @@ class RegressionNodeTest(TestCase):
                 self.assertIsNone(model.child1)
                 self.assertIsNone(model.child2)
 
-                if isinstance(model, PerpendicularRegressionNode):
+                if isinstance(model, PerpendicularRegressionTree):
                     self.assertEqual(model.split_dimension, -1)
                     self.assertEqual(model.split_value, None)
                 else:
@@ -155,10 +155,10 @@ class RegressionNodeTest(TestCase):
 
             X = data_matrix_transform(X)
 
-            for i_model in range(len(create_regression_models(prior, 0.5))):
+            for i_model in range(len(create_regression_trees(prior, 0.5))):
                 mse_list = []
                 for partition_prior in [0.1, 0.5, 0.9, 0.99]:
-                    model = create_regression_models(prior, partition_prior)[i_model]
+                    model = create_regression_trees(prior, partition_prior)[i_model]
                     print('Testing {}'.format(type(model).__name__))
                     model.fit(X, y)
                     print(model)

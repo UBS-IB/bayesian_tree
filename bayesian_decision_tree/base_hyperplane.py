@@ -4,17 +4,19 @@ import numpy as np
 from scipy.optimize._differentialevolution import DifferentialEvolutionSolver
 from scipy.sparse import csc_matrix, csr_matrix
 
-from bayesian_decision_tree.base import BaseNode
+from bayesian_decision_tree.base import BaseTree
 from bayesian_decision_tree.hyperplane_optimization import HyperplaneOptimizationFunction, ScipyOptimizer
 
 
-class BaseHyperplaneNode(BaseNode, ABC):
+class BaseHyperplaneTree(BaseTree, ABC):
     """
-    The base class for all Bayesian decision tree algorithms (classification and regression). Performs all the high-level fitting
-    and prediction tasks and outsources the low-level work to the subclasses.
+    Abstract base class of all Bayesian decision tree models using arbitrarily-oriented hyperplane splits
+    (classification and regression). Performs medium-level fitting and prediction tasks and outsources
+    the low-level work to subclasses.
     """
+
     def __init__(self, partition_prior, prior, child_type, is_regression, optimizer, level):
-        BaseNode.__init__(self, partition_prior, prior, child_type, is_regression, level)
+        BaseTree.__init__(self, partition_prior, prior, child_type, is_regression, level)
 
         if optimizer is None:
             # default to 'Differential Evolution' which works well and is reasonably fast
