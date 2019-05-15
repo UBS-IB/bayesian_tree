@@ -16,9 +16,9 @@ This package implements:
     trees.
     
     The models are called
-    [PerpendicularClassificationTree](bayesian_decision_tree/classification.py)
+    [`PerpendicularClassificationTree`](bayesian_decision_tree/classification.py)
     and
-    [PerpendicularRegressionTree](bayesian_decision_tree/regression.py)
+    [`PerpendicularRegressionTree`](bayesian_decision_tree/regression.py)
      
   * **Hyperplane Trees**:
     Decision/regression trees using _arbitrarily-oriented hyperplanes_. These models
@@ -37,9 +37,9 @@ This package implements:
     space.
     
     The models are called
-    [HyperplaneClassificationTree](bayesian_decision_tree/classification.py)
+    [`HyperplaneClassificationTree`](bayesian_decision_tree/classification.py)
     and
-    [HyperplaneRegressionTree](bayesian_decision_tree/regression.py).
+    [`HyperplaneRegressionTree`](bayesian_decision_tree/regression.py).
 
 ## Installation
 
