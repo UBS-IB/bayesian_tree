@@ -1,12 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](http://keepachangelog.com/)
-and this project adheres to [Semantic Versioning](http://semver.org/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/)
+and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 ### Added
+- Support for arbitrarily-oriented hyperplane splits rather than axis-perpendicular ones only
 - Experimental support for sparse DataFrames and sparse matrices (scipy.sparse) for fitting and prediction
+- Added `model.feature_importance()` for feature selection
+- All models now compatible with scikit-learn models
 
 ### Changed
 - Some

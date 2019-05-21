@@ -27,12 +27,12 @@ with open(path.join(here, "README.md")) as l:
 
 
 requirements = [
-    'matplotlib==2.2.*',
-    'scipy==1.1.*',
-    'numpy==1.13.*',
-    'pandas==0.23.*',
+    'matplotlib>=2.2.*',
+    'scipy>=1.2.*',
+    'numpy>=1.13.*',
+    'pandas>=0.23.*',
     'requests==2.19.1',
-    'scikit-learn==0.19.*',
+    'scikit-learn>=0.19.*',
 ]
 
 
