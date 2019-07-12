@@ -12,8 +12,8 @@ data_matrix_transforms = [
     lambda X: X,
     lambda X: csc_matrix(X),
     lambda X: csr_matrix(X),
-    lambda X: pd.DataFrame(data=X),
-    lambda X: pd.DataFrame(data=X).to_sparse()
+    lambda X: pd.DataFrame(data=X, columns=['col-{}'.format(i) for i in range(len(X[0]))]),
+    lambda X: pd.DataFrame(data=X, columns=['col-{}'.format(i) for i in range(len(X[0]))]).to_sparse()
 ]
 
 

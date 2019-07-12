@@ -109,7 +109,8 @@ class RegressionTreeTest(TestCase):
                 model.fit(X, y)
                 print(model)
 
-                self.assertEqual(model.depth_and_leaves(), (0, 1))
+                self.assertEqual(model.get_depth(), 0)
+                self.assertEqual(model.get_n_leaves(), 1)
 
                 self.assertIsNone(model.child1)
                 self.assertIsNone(model.child2)

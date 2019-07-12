@@ -143,7 +143,8 @@ class BasePerpendicularTree(BaseTree, ABC):
                 self.child2._update_feature_importance(feature_importance)
 
     def _prune(self):
-        depth_and_leaves_start = self.depth_and_leaves()
+        depth_start = self.get_depth()
+        n_leaves_start = self.get_n_leaves()
 
         if self.is_leaf():
             return
@@ -163,7 +164,7 @@ class BasePerpendicularTree(BaseTree, ABC):
             self.child1._prune()
             self.child2._prune()
 
-        if depth_and_leaves_start != self.depth_and_leaves():
+        if depth_start != self.get_depth() or n_leaves_start != self.get_n_leaves():
             # we did some pruning somewhere down this sub-tree -> prune again
             self._prune()
 

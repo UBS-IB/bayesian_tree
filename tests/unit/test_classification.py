@@ -102,7 +102,8 @@ class ClassificationTreeTest(TestCase):
                 model.fit(X, y)
                 print(model)
 
-                self.assertEqual(model.depth_and_leaves(), (0, 1))
+                self.assertEqual(model.get_depth(), 0)
+                self.assertEqual(model.get_n_leaves(), 1)
 
                 self.assertIsNone(model.child1)
                 self.assertIsNone(model.child2)
@@ -151,7 +152,8 @@ class ClassificationTreeTest(TestCase):
                 model.fit(X, y)
                 print(model)
 
-                self.assertEqual(model.depth_and_leaves(), (1, 2))
+                self.assertEqual(model.get_depth(), 1)
+                self.assertEqual(model.get_n_leaves(), 2)
 
                 self.assertIsNotNone(model.child1)
                 self.assertIsNone(model.child1.child1)
@@ -212,7 +214,8 @@ class ClassificationTreeTest(TestCase):
                 print(model)
 
                 if isinstance(model, PerpendicularClassificationTree):
-                    self.assertEqual(model.depth_and_leaves(), (2, 3))
+                    self.assertEqual(model.get_depth(), 2)
+                    self.assertEqual(model.get_n_leaves(), 3)
 
                     self.assertIsNotNone(model.child1)
                     self.assertIsNone(model.child1.child1)
@@ -233,7 +236,8 @@ class ClassificationTreeTest(TestCase):
                     self.assertEqual(model.child2.split_dimension, 0)
                     self.assertEqual(model.child2.split_value, 1.5)
                 else:
-                    self.assertEqual(model.depth_and_leaves(), (2, 3))
+                    self.assertEqual(model.get_depth(), 2)
+                    self.assertEqual(model.get_n_leaves(), 3)
 
                     self.assertTrue(0.3 < model.best_hyperplane_origin[0] < 0.7)
                     if model.child1.best_hyperplane_origin is not None:
@@ -286,8 +290,10 @@ class ClassificationTreeTest(TestCase):
             # make sure  model1 finds two splits at 5 and 12 and that model2 only finds one (because everything >= 5 has target 1)
             model1.fit(X, y, prune=False)
             model2.fit(X, y, prune=True)
-            self.assertEqual(model1.depth_and_leaves(), (2, 3))
-            self.assertEqual(model2.depth_and_leaves(), (1, 2))
+            self.assertEqual(model1.get_depth(), 2)
+            self.assertEqual(model1.get_n_leaves(), 3)
+            self.assertEqual(model2.get_depth(), 1)
+            self.assertEqual(model2.get_n_leaves(), 2)
 
             # now make sure the node that is the result of pruning two children is consistent
             c1 = model1.child2.child1

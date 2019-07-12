@@ -69,7 +69,7 @@ if __name__ == '__main__':
     model.fit(X_train, y_train, delta, prune=True)
     print(model)
     print()
-    print('Tree depth and number of leaves:', model.depth_and_leaves())
+    print('Tree depth and number of leaves: {}, {}'.format(model.get_depth(), model.get_n_leaves()))
     print('Feature importance:', model.feature_importance())
 
     # compute accuracy

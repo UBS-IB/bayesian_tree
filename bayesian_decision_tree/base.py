@@ -187,16 +187,18 @@ class BaseTree(ABC, BaseEstimator):
 
     @staticmethod
     def _normalize_data_and_feature_names(X, feature_names=None):
-        if isinstance(X, pd.DataFrame):
-            X = X.values
-            if feature_names is None:
-                feature_names = X.columns
-        elif isinstance(X, pd.SparseDataFrame):
+        if isinstance(X, pd.SparseDataFrame):
             # we cannot directly access the sparse underlying data,
             # but we can convert it to a sparse scipy matrix
-            X = csc_matrix(X.to_coo())
             if feature_names is None:
                 feature_names = X.columns
+
+            X = csc_matrix(X.to_coo())
+        elif isinstance(X, pd.DataFrame):
+            if feature_names is None:
+                feature_names = X.columns
+
+            X = X.values
         else:
             if isinstance(X, list):
                 X = np.array(X)
@@ -228,26 +230,47 @@ class BaseTree(ABC, BaseEstimator):
         len_X = 1 if X is None or np.isscalar(X) else X.shape[0]
         return np.zeros(len_X) if predict_class else np.zeros((len_X, predictions_child.shape[1]))
 
-    def depth_and_leaves(self):
-        """Compute and return the tree depth and the number of leaves.
+    def get_depth(self):
+        """Computes and returns the tree depth.
 
         Returns
         -------
-        depth_and_leaves : tuple of (int, int)
-            The tree depth and the number of leaves.
+        depth : int
+            The tree depth.
         """
 
-        return self._update_depth_and_leaves(0, 0)
+        return self._update_depth(0)
 
-    def _update_depth_and_leaves(self, depth, leaves):
+    def get_n_leaves(self):
+        """Computes and returns the total number of leaves of this tree.
+
+        Returns
+        -------
+        n_leaves : int
+            The number of leaves.
+        """
+
+        return self._update_n_leaves(0)
+
+    def _update_depth(self, depth):
         if self.is_leaf():
-            return max(depth, self.level), leaves+1
+            return max(depth, self.level)
         else:
             if self.child1 is not None:
-                depth, leaves = self.child1._update_depth_and_leaves(depth, leaves)
-                depth, leaves = self.child2._update_depth_and_leaves(depth, leaves)
+                depth = self.child1._update_depth(depth)
+                depth = self.child2._update_depth(depth)
 
-        return depth, leaves
+            return depth
+
+    def _update_n_leaves(self, n_leaves):
+        if self.is_leaf():
+            return n_leaves+1
+        else:
+            if self.child1 is not None:
+                n_leaves = self.child1._update_n_leaves(n_leaves)
+                n_leaves = self.child2._update_n_leaves(n_leaves)
+
+            return n_leaves
 
     @abstractmethod
     def is_leaf(self):
