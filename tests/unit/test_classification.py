@@ -8,6 +8,26 @@ from tests.unit.helper import data_matrix_transforms, create_classification_tree
 
 
 class ClassificationTreeTest(TestCase):
+    def test_cannot_fit_with_bad_dimensions(self):
+        for model in create_classification_trees(np.array([1, 1]), 0.5):
+            np.random.seed(6666)
+
+            for good_X in [np.random.normal(0, 1, [10, 10])]:
+                for bad_y in [np.random.randint(0, 2, []), np.random.randint(0, 2, [10, 10]), np.random.randint(0, 2, [10, 10, 10])]:
+                    try:
+                        model.fit(good_X, bad_y)
+                        self.fail()
+                    except ValueError:
+                        pass
+
+            for bad_X in [np.random.normal(0, 1, [10, 10, 10])]:
+                for good_y in [np.random.randint(0, 2, [10])]:
+                    try:
+                        model.fit(bad_X, good_y)
+                        self.fail()
+                    except ValueError:
+                        pass
+
     def test_cannot_predict_before_training(self):
         for model in create_classification_trees(np.array([1, 1]), 0.5):
             # can't predict yet
@@ -246,3 +266,31 @@ class ClassificationTreeTest(TestCase):
                     assert_array_equal(model.predict_proba(data_matrix_transform2(
                         [[0.0, 0.5], [0.4, 0.5], [0.6, 0.5], [1.4, 0.5], [1.6, 0.5], [100, 0.5]])
                     ), expected)
+
+    def test_prune(self):
+        models = lambda: create_classification_trees(np.array([10, 10]), 0.9)
+        for model1, model2 in zip(models(), models()):
+            np.random.seed(666)
+
+            X = np.vstack([
+                np.random.normal(0, 1, [100, 2]),
+                np.random.normal(10, 1, [100, 2]),
+                np.random.normal(14, 1, [100, 2]),
+            ])
+            y = np.hstack([
+                0 * np.ones(100),
+                1 * np.ones(100),
+                np.minimum(1, np.random.randint(0, 3, 100)),  # about two thirds should be 1's
+            ])
+
+            # make sure  model1 finds two splits at 5 and 12 and that model2 only finds one (because everything >= 5 has target 1)
+            model1.fit(X, y, prune=False)
+            model2.fit(X, y, prune=True)
+            self.assertEqual(model1.depth_and_leaves(), (2, 3))
+            self.assertEqual(model2.depth_and_leaves(), (1, 2))
+
+            # now make sure the node that is the result of pruning two children is consistent
+            c1 = model1.child2.child1
+            c2 = model1.child2.child2
+            c12 = model2.child2
+            assert_array_equal(c12.posterior, c1.posterior + c2.posterior - c12.prior)

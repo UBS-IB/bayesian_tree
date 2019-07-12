@@ -44,7 +44,12 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
         return self._predict(X, predict_class=False)
 
     def _check_target(self, y):
-        self._check_classification_target(y)
+        if y.ndim != 1:
+            raise ValueError('y should have 1 dimension but has {}'.format(y.ndim))
+
+        n_classes = len(self.prior)
+        if not np.all(np.unique(y) == np.arange(0, n_classes)):
+            raise ValueError('Expected target values 0..{} but found {}..{}'.format(n_classes - 1, y.min(), y.max()))
 
     def _compute_log_p_data_no_split(self, y):
         alphas = self.prior

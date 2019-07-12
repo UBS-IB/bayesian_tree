@@ -24,7 +24,8 @@ class BaseRegressionTree(BaseTree, ABC, RegressorMixin):
         super().__init__(partition_prior, prior, child_type, True, level)
 
     def _check_target(self, y):
-        pass
+        if y.ndim != 1:
+            raise ValueError('y should have 1 dimension but has {}'.format(y.ndim))
 
     def _compute_log_p_data_no_split(self, y):
         n = len(y)

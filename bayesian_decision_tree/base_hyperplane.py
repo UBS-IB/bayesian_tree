@@ -162,11 +162,11 @@ class BaseHyperplaneTree(BaseTree, ABC):
     def __str__(self):
         return self._str([], '\u2523', '\u2517', '\u2503', '\u2265', None)
 
-    def _str(self, anchor, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, is_front_child):
+    def _str(self, anchor, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, is_back_child):
         anchor_str = ''.join(' ' + a for a in anchor)
         s = ''
-        if is_front_child is not None:
-            s += anchor_str + ' {:5s}: '.format('front' if is_front_child else 'back')
+        if is_back_child is not None:
+            s += anchor_str + ' {:5s}: '.format('back' if is_back_child else 'front')
 
         if self.is_leaf():
             s += 'y={}'.format(self._predict_leaf())
@@ -177,11 +177,11 @@ class BaseHyperplaneTree(BaseTree, ABC):
 
             # 'back' child (the child that is on the side of the hyperplane opposite to the normal vector, or projection < 0)
             s += '\n'
-            anchor_child1 = [VERT_RIGHT] if len(anchor) == 0 else (anchor[:-1] + [(BAR if is_front_child else '  '), VERT_RIGHT])
+            anchor_child1 = [VERT_RIGHT] if len(anchor) == 0 else (anchor[:-1] + [(BAR if is_back_child else '  '), VERT_RIGHT])
             s += self.child1._str(anchor_child1, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, True)
 
             # 'front' child (the child that is on same side of the hyperplane as the normal vector, or projection >= 0)
             s += '\n'
-            anchor_child2 = [DOWN_RIGHT] if len(anchor) == 0 else (anchor[:-1] + [(BAR if is_front_child else '  '), DOWN_RIGHT])
+            anchor_child2 = [DOWN_RIGHT] if len(anchor) == 0 else (anchor[:-1] + [(BAR if is_back_child else '  '), DOWN_RIGHT])
             s += self.child2._str(anchor_child2, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, False)
         return s

@@ -172,6 +172,7 @@ def plot_1d_perpendicular(root, X_train, y_train, info_train, X_test, y_test, in
     plt.xlabel('x0')
     plt.ylabel('x1')
     plt.legend()
+    plt.gca().set_aspect(1)
 
     plt.subplot(212)
     plt.plot(X_test[:, 0], y_test, 'o-')
@@ -180,6 +181,7 @@ def plot_1d_perpendicular(root, X_train, y_train, info_train, X_test, y_test, in
     plt.xlabel('x0')
     plt.ylabel('x1')
     plt.legend()
+    plt.gca().set_aspect(1)
 
     plt.show()
 
@@ -209,9 +211,11 @@ def plot_2d_perpendicular(root, X_train, y_train, info_train, X_test, y_test, in
 
     plt.subplot(211)
     plot(X_train, y_train, info_train)
+    plt.gca().set_aspect(1)
 
     plt.subplot(212)
     plot(X_test, y_test, info_test)
+    plt.gca().set_aspect(1)
 
     plt.show()
 

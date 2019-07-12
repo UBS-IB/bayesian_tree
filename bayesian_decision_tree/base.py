@@ -33,7 +33,7 @@ class BaseTree(ABC, BaseEstimator):
         self.log_p_data_no_split = None
         self.best_log_p_data_split = None
 
-    def fit(self, X, y, delta=0.0, prune=False, verbose=False):
+    def fit(self, X, y, delta=0.0, prune=False, verbose=False, feature_names=None):
         """
         Trains this classification or regression tree using the training set (X, y).
 
@@ -63,6 +63,10 @@ class BaseTree(ABC, BaseEstimator):
         verbose : bool, default=False
             Prints fitting progress.
 
+        feature_names: array-lie, shape = [n_features]
+            An optional sequence of feature names. If not provided then 'x0', 'x1', ... is used
+            if X is a matrix, or the column headers if X is a DataFrame.
+
         References
         ----------
 
@@ -77,7 +81,7 @@ class BaseTree(ABC, BaseEstimator):
             raise ValueError('Delta must be between 0.0 and 1.0 but was {}.'.format(delta))
 
         # input transformation
-        X, feature_names = self._normalize_data_and_feature_names(X)
+        X, feature_names = self._normalize_data_and_feature_names(X, feature_names)
 
         if isinstance(y, list):
             y = np.array(y)
@@ -90,7 +94,7 @@ class BaseTree(ABC, BaseEstimator):
         if prune:
             self._prune()
 
-        return
+        return self
 
     def predict(self, X):
         """Predict class or regression value for X.
@@ -182,17 +186,17 @@ class BaseTree(ABC, BaseEstimator):
         pass
 
     @staticmethod
-    def _normalize_data_and_feature_names(X):
-        if X is None:
-            feature_names = None
-        elif isinstance(X, pd.DataFrame):
-            feature_names = X.columns
+    def _normalize_data_and_feature_names(X, feature_names=None):
+        if isinstance(X, pd.DataFrame):
             X = X.values
+            if feature_names is None:
+                feature_names = X.columns
         elif isinstance(X, pd.SparseDataFrame):
             # we cannot directly access the sparse underlying data,
             # but we can convert it to a sparse scipy matrix
-            feature_names = X.columns
             X = csc_matrix(X.to_coo())
+            if feature_names is None:
+                feature_names = X.columns
         else:
             if isinstance(X, list):
                 X = np.array(X)
@@ -202,7 +206,11 @@ class BaseTree(ABC, BaseEstimator):
             if X.ndim == 1:
                 X = np.expand_dims(X, 0)
 
-            feature_names = ['x{}'.format(i) for i in range(X.shape[1])]
+            if feature_names is None:
+                feature_names = ['x{}'.format(i) for i in range(X.shape[1])]
+
+        if X.ndim != 2:
+            raise ValueError('X should have 2 dimensions but has {}'.format(X.ndim))
 
         return X, feature_names
 
@@ -240,11 +248,6 @@ class BaseTree(ABC, BaseEstimator):
                 depth, leaves = self.child2._update_depth_and_leaves(depth, leaves)
 
         return depth, leaves
-
-    def _check_classification_target(self, y):
-        n_classes = len(self.prior)
-        assert np.all(np.unique(y) == np.arange(0, n_classes)), \
-            'Expected target values 0..{} but found {}..{}'.format(n_classes - 1, y.min(), y.max())
 
     @abstractmethod
     def is_leaf(self):
