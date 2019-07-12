@@ -111,6 +111,7 @@ class RegressionTreeTest(TestCase):
 
                 self.assertEqual(model.get_depth(), 0)
                 self.assertEqual(model.get_n_leaves(), 1)
+                self.assertEqual(model.n_data, 5)
 
                 self.assertIsNone(model.child1)
                 self.assertIsNone(model.child2)

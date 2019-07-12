@@ -104,6 +104,7 @@ class ClassificationTreeTest(TestCase):
 
                 self.assertEqual(model.get_depth(), 0)
                 self.assertEqual(model.get_n_leaves(), 1)
+                self.assertEqual(model.n_data, 5)
 
                 self.assertIsNone(model.child1)
                 self.assertIsNone(model.child2)
@@ -154,14 +155,17 @@ class ClassificationTreeTest(TestCase):
 
                 self.assertEqual(model.get_depth(), 1)
                 self.assertEqual(model.get_n_leaves(), 2)
+                self.assertEqual(model.n_data, 4)
 
                 self.assertIsNotNone(model.child1)
                 self.assertIsNone(model.child1.child1)
                 self.assertIsNone(model.child1.child2)
+                self.assertEqual(model.child1.n_data, 2)
 
                 self.assertIsNotNone(model.child2)
                 self.assertIsNone(model.child2.child1)
                 self.assertIsNone(model.child2.child2)
+                self.assertEqual(model.child1.n_data, 2)
 
                 if isinstance(model, PerpendicularClassificationTree):
                     self.assertEqual(model.split_dimension, 0)
@@ -216,14 +220,19 @@ class ClassificationTreeTest(TestCase):
                 if isinstance(model, PerpendicularClassificationTree):
                     self.assertEqual(model.get_depth(), 2)
                     self.assertEqual(model.get_n_leaves(), 3)
+                    self.assertEqual(model.n_data, 10)
 
                     self.assertIsNotNone(model.child1)
+                    self.assertEqual(model.child1.n_data, 4)
                     self.assertIsNone(model.child1.child1)
                     self.assertIsNone(model.child1.child2)
 
                     self.assertIsNotNone(model.child2)
+                    self.assertEqual(model.child2.n_data, 6)
                     self.assertIsNotNone(model.child2.child1)
+                    self.assertEqual(model.child2.child1.n_data, 4)
                     self.assertIsNotNone(model.child2.child2)
+                    self.assertEqual(model.child2.child2.n_data, 2)
 
                     self.assertIsNone(model.child2.child1.child1)
                     self.assertIsNone(model.child2.child1.child2)
@@ -238,12 +247,17 @@ class ClassificationTreeTest(TestCase):
                 else:
                     self.assertEqual(model.get_depth(), 2)
                     self.assertEqual(model.get_n_leaves(), 3)
+                    self.assertEqual(model.n_data, 10)
 
                     self.assertTrue(0.3 < model.best_hyperplane_origin[0] < 0.7)
                     if model.child1.best_hyperplane_origin is not None:
                         self.assertTrue(1.0 < model.child1.best_hyperplane_origin[0] < 2.0)
+                        self.assertEqual(model.child1.n_data, 6)
+                        self.assertEqual(model.child2.n_data, 4)
                     else:
                         self.assertTrue(1.0 < model.child2.best_hyperplane_origin[0] < 2.0)
+                        self.assertEqual(model.child1.n_data, 4)
+                        self.assertEqual(model.child2.n_data, 6)
 
                 expected = np.array([0, 0, 1, 1, 0, 0])
                 self.assertEqual(model.predict([0, 0.5]), expected[0])

@@ -28,6 +28,7 @@ class BaseTree(ABC, BaseEstimator):
         # to be set later
         self.n_dim = None
         self.posterior = None
+        self.n_data = None
         self.child1 = None
         self.child2 = None
         self.log_p_data_no_split = None

@@ -108,14 +108,17 @@ class BasePerpendicularTree(BaseTree, ABC):
                 self.child1._fit(X1, y1, delta, verbose, feature_names)
             else:
                 self.child1.posterior = self._compute_posterior(y1)
+                self.child1.n_data = X1.shape[0]
 
             if X2.shape[0] > 1:
                 self.child2._fit(X2, y2, delta, verbose, feature_names)
             else:
                 self.child2.posterior = self._compute_posterior(y2)
+                self.child2.n_data = X2.shape[0]
 
         # compute posterior
         self.n_dim = X.shape[1]
+        self.n_data = X.shape[0]
         self.posterior = self._compute_posterior(y)
 
     def _compute_child1_and_child2_indices(self, X, dense):
@@ -178,7 +181,7 @@ class BasePerpendicularTree(BaseTree, ABC):
             s += anchor_str + ' {}{}: '.format('<' if is_left_child else GEQ, parent_split_value)
 
         if self.is_leaf():
-            s += 'y={}'.format(self._predict_leaf())
+            s += 'y={}, n={}'.format(self._predict_leaf(), self.n_data)
             if not self.is_regression:
                 s += ', p(y)={}'.format(self._predict(None, predict_class=False)[0])
         else:

@@ -16,29 +16,47 @@ if __name__ == '__main__':
     # data set: uncomment one of the following sections
 
     # artificial 4-class data somewhat similar to the Ripley data
-    n_train = 500
-    n_test = 2000
-    x0 = [1, 3, 2, 4]
-    x1 = [1, 1, 3, 3]
-    sd = 0.7
-    X_train = np.zeros((n_train, 2))
-    y_train = np.zeros((n_train, 1))
-    X_test = np.zeros((n_test, 2))
-    y_test = np.zeros((n_test, 1))
-    np.random.seed(666)
-    for i in range(4):
-        X_train[i * n_train//4:(i + 1) * n_train//4, 0] = np.random.normal(x0[i], sd, n_train//4)
-        X_train[i * n_train//4:(i + 1) * n_train//4, 1] = np.random.normal(x1[i], sd, n_train//4)
-        y_train[i * n_train//4:(i + 1) * n_train//4] = i
+    # n_train = 500
+    # n_test = 2000
+    # x0 = [1, 3, 2, 4]
+    # x1 = [1, 1, 3, 3]
+    # sd = 0.7
+    # X_train = np.zeros((n_train, 2))
+    # y_train = np.zeros((n_train, 1))
+    # X_test = np.zeros((n_test, 2))
+    # y_test = np.zeros((n_test, 1))
+    # np.random.seed(666)
+    # for i in range(4):
+    #     X_train[i * n_train//4:(i + 1) * n_train//4, 0] = np.random.normal(x0[i], sd, n_train//4)
+    #     X_train[i * n_train//4:(i + 1) * n_train//4, 1] = np.random.normal(x1[i], sd, n_train//4)
+    #     y_train[i * n_train//4:(i + 1) * n_train//4] = i
+    #
+    #     X_test[i * n_test//4:(i + 1) * n_test//4, 0] = np.random.normal(x0[i], sd, n_test//4)
+    #     X_test[i * n_test//4:(i + 1) * n_test//4, 1] = np.random.normal(x1[i], sd, n_test//4)
+    #     y_test[i * n_test//4:(i + 1) * n_test//4] = i
+    # train = np.hstack((X_train, y_train))
+    # test = np.hstack((X_test, y_test))
 
-        X_test[i * n_test//4:(i + 1) * n_test//4, 0] = np.random.normal(x0[i], sd, n_test//4)
-        X_test[i * n_test//4:(i + 1) * n_test//4, 1] = np.random.normal(x1[i], sd, n_test//4)
-        y_test[i * n_test//4:(i + 1) * n_test//4] = i
-    train = np.hstack((X_train, y_train))
-    test = np.hstack((X_test, y_test))
+    # np.random.seed(5)
+    #
+    # n = 10000
+    # X_train = np.random.uniform(0, 4, (n, 2))
+    # y_train = np.zeros((n, 1))
+    # y_train[(X_train[:, 0] >= 1) & (X_train[:, 0] < 2) & (X_train[:, 1] <= 3)] = 1
+    # y_train[(X_train[:, 0] >= 2) & (X_train[:, 0] < 3) & (X_train[:, 1] <= 1)] = 1
+    # y_train[(X_train[:, 0] >= 3)] = 1
+    #
+    # angle = 30*np.pi/180
+    # X_train_rot = X_train.copy()
+    # X_train_rot[:, 0] = np.cos(angle)*X_train[:, 0] + np.sin(angle)*X_train[:, 1]
+    # X_train_rot[:, 1] = -np.sin(angle)*X_train[:, 0] + np.cos(angle)*X_train[:, 1]
+    # X_train = X_train_rot
+    #
+    # train = np.hstack((X_train, y_train))
+    # test = train
 
     # or, alternatively, load a UCI dataset
-    # train, test = helper.load_ripley(proxies)
+    train, test = helper.load_ripley(proxies)
 
     n_dim = len(np.unique(train[:, -1]))
 
@@ -79,6 +97,9 @@ if __name__ == '__main__':
     info_test = 'Test accuracy:  {:.4f} %'.format(100 * accuracy_test)
     print(info_train)
     print(info_test)
+
+    from sklearn.metrics import roc_curve
+    print(roc_curve(y_train, model.predict_proba(X_train)[:, 1]))
 
     # plot if 1D or 2D
     dimensions = X_train.shape[1]
