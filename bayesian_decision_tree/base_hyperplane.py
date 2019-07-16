@@ -164,7 +164,7 @@ class BaseHyperplaneTree(BaseTree, ABC):
             self._prune()
 
     def __str__(self):
-        return self._str([], '\u2523', '\u2517', '\u2503', '\u2265', None)
+        return self._str([], '\u251C', '\u2514', '\u2502', '\u2265', None)
 
     def _str(self, anchor, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, is_back_child):
         anchor_str = ''.join(' ' + a for a in anchor)
@@ -175,7 +175,7 @@ class BaseHyperplaneTree(BaseTree, ABC):
         if self.is_leaf():
             s += 'y={}, n={}'.format(self._predict_leaf(), self.n_data)
             if not self.is_regression:
-                s += ', p(y)={}'.format(self._predict(None, predict_class=False)[0])
+                s += ', p(y)={}'.format(self._compute_posterior_mean())
         else:
             s += 'HP(origin={}, normal={})'.format(self.best_hyperplane_origin, self.best_hyperplane_normal)
 

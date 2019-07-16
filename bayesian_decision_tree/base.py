@@ -76,6 +76,9 @@ class BaseTree(ABC, BaseEstimator):
 
         # validation
         if self.level == 0:
+            if isinstance(y, list):
+                y = np.array(y)
+
             self._check_target(y)
 
         if delta < 0.0 or delta > 1.0:
@@ -88,6 +91,9 @@ class BaseTree(ABC, BaseEstimator):
             y = np.array(y)
 
         y = y.squeeze()
+
+        if X.shape[0] != len(y):
+            raise ValueError('Invalid shapes: X={}, y={}'.format(X.shape, y.shape))
 
         # fit
         self._fit(X, y, delta, verbose, feature_names)

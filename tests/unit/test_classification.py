@@ -2,6 +2,7 @@ from unittest import TestCase
 
 import numpy as np
 from numpy.testing import assert_array_equal, assert_array_almost_equal
+from numpy.random import normal, randint
 
 from bayesian_decision_tree.classification import PerpendicularClassificationTree
 from tests.unit.helper import data_matrix_transforms, create_classification_trees
@@ -12,16 +13,16 @@ class ClassificationTreeTest(TestCase):
         for model in create_classification_trees(np.array([1, 1]), 0.5):
             np.random.seed(6666)
 
-            for good_X in [np.random.normal(0, 1, [10, 10])]:
-                for bad_y in [np.random.randint(0, 2, []), np.random.randint(0, 2, [10, 10]), np.random.randint(0, 2, [10, 10, 10])]:
+            for good_X in [normal(0, 1, [10, 10])]:
+                for bad_y in [randint(0, 2, []), randint(0, 2, [10, 10]), randint(0, 2, [11]), randint(0, 2, [10, 10, 10])]:
                     try:
                         model.fit(good_X, bad_y)
                         self.fail()
                     except ValueError:
                         pass
 
-            for bad_X in [np.random.normal(0, 1, [10, 10, 10])]:
-                for good_y in [np.random.randint(0, 2, [10])]:
+            for bad_X in [normal(0, 1, [10, 10, 10])]:
+                for good_y in [randint(0, 2, [10])]:
                     try:
                         model.fit(bad_X, good_y)
                         self.fail()
@@ -291,14 +292,14 @@ class ClassificationTreeTest(TestCase):
             np.random.seed(666)
 
             X = np.vstack([
-                np.random.normal(0, 1, [100, 2]),
-                np.random.normal(10, 1, [100, 2]),
-                np.random.normal(14, 1, [100, 2]),
+                normal(0, 1, [100, 2]),
+                normal(10, 1, [100, 2]),
+                normal(14, 1, [100, 2]),
             ])
             y = np.hstack([
                 0 * np.ones(100),
                 1 * np.ones(100),
-                np.minimum(1, np.random.randint(0, 3, 100)),  # about two thirds should be 1's
+                np.minimum(1, randint(0, 3, 100)),  # about two thirds should be 1's
             ])
 
             # make sure  model1 finds two splits at 5 and 12 and that model2 only finds one (because everything >= 5 has target 1)

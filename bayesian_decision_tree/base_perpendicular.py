@@ -172,7 +172,7 @@ class BasePerpendicularTree(BaseTree, ABC):
             self._prune()
 
     def __str__(self):
-        return self._str([], self.split_value, '\u2523', '\u2517', '\u2503', '\u2265', None)
+        return self._str([], self.split_value, '\u251C', '\u2514', '\u2502', '\u2265', None)
 
     def _str(self, anchor, parent_split_value, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, is_left_child):
         anchor_str = ''.join(' ' + a for a in anchor)
@@ -183,7 +183,7 @@ class BasePerpendicularTree(BaseTree, ABC):
         if self.is_leaf():
             s += 'y={}, n={}'.format(self._predict_leaf(), self.n_data)
             if not self.is_regression:
-                s += ', p(y)={}'.format(self._predict(None, predict_class=False)[0])
+                s += ', p(y)={}'.format(self._compute_posterior_mean())
         else:
             s += '{}={}'.format(self.split_feature_name, self.split_value)
 
