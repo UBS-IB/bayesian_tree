@@ -172,6 +172,9 @@ class BasePerpendicularTree(BaseTree, ABC):
             self._prune()
 
     def __str__(self):
+        if self.posterior is None:
+            return 'Unfitted model'
+
         return self._str([], self.split_value, '\u251C', '\u2514', '\u2502', '\u2265', None)
 
     def _str(self, anchor, parent_split_value, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, is_left_child):

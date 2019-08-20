@@ -79,6 +79,10 @@ class RegressionTreeTest(TestCase):
                 except ValueError:
                     pass
 
+    def test_print_empty_model(self):
+        for model in create_regression_trees(np.array([1, 1]), 0.5):
+            print(model)
+
     def test_no_split(self):
         for data_matrix_transform in data_matrix_transforms:
             mu = 0

@@ -16,4 +16,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.1.0] - 2019-02-06
 ### Added
-- First public release
+- First release

@@ -20,11 +20,8 @@ import versioneer
 
 
 here = path.abspath(path.dirname(__file__))
-
-
 with open(path.join(here, "README.md")) as l:
     long_description = l.read()
-
 
 requirements = [
     'matplotlib>=2.2.*',
@@ -34,7 +31,6 @@ requirements = [
     'requests==2.19.1',
     'scikit-learn>=0.19.*',
 ]
-
 
 setup(
     name='bayesian-decision-tree',

@@ -164,6 +164,9 @@ class BaseHyperplaneTree(BaseTree, ABC):
             self._prune()
 
     def __str__(self):
+        if self.posterior is None:
+            return 'Unfitted model'
+
         return self._str([], '\u251C', '\u2514', '\u2502', '\u2265', None)
 
     def _str(self, anchor, VERT_RIGHT, DOWN_RIGHT, BAR, GEQ, is_back_child):

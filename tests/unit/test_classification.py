@@ -84,6 +84,10 @@ class ClassificationTreeTest(TestCase):
                 except ValueError:
                     pass
 
+    def test_print_empty_model(self):
+        for model in create_classification_trees(np.array([1, 1]), 0.5):
+            print(model)
+
     def test_no_split(self):
         for data_matrix_transform in data_matrix_transforms:
             for model in create_classification_trees(np.array([1, 1]), 0.5):
