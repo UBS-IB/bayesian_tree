@@ -87,13 +87,15 @@ class BaseHyperplaneTree(BaseTree, ABC):
                 self.child1 = self.child_type(self.partition_prior, prior_child1, self.optimizer, self.level + 1)
                 self.child2 = self.child_type(self.partition_prior, prior_child2, self.optimizer, self.level + 1)
 
-                if X1.shape[0] > 1:
+            # fit children if there is more than one data point (i.e., there is
+            # something to split) and if the targets differ (no point otherwise)
+                if X1.shape[0] > 1 and len(np.unique(y1)) > 1:
                     self.child1._fit(X1, y1, delta, verbose, feature_names)
                 else:
                     self.child1.posterior = self._compute_posterior(y1)
                     self.child1.n_data = X1.shape[0]
 
-                if X2.shape[0] > 1:
+                if X2.shape[0] > 1 and len(np.unique(y2)) > 1:
                     self.child2._fit(X2, y2, delta, verbose, feature_names)
                 else:
                     self.child2.posterior = self._compute_posterior(y2)
