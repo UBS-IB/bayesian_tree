@@ -74,24 +74,18 @@ class BaseTree(ABC, BaseEstimator):
         .. [1] https://arxiv.org/abs/1901.03214
         """
 
-        # validation
-        if self.level == 0:
-            if isinstance(y, list):
-                y = np.array(y)
-
-            self._check_target(y)
-
-        if delta < 0.0 or delta > 1.0:
-            raise ValueError('Delta must be between 0.0 and 1.0 but was {}.'.format(delta))
-
-        # input transformation
-        X, feature_names = self._normalize_data_and_feature_names(X, feature_names)
-
+        # validation and input transformation
         if isinstance(y, list):
             y = np.array(y)
 
         y = y.squeeze()
+        y = self._ensure_float64(y)
+        self._check_target(y)
 
+        if delta < 0.0 or delta > 1.0:
+            raise ValueError('Delta must be between 0.0 and 1.0 but was {}.'.format(delta))
+
+        X, feature_names = self._normalize_data_and_feature_names(X, feature_names)
         if X.shape[0] != len(y):
             raise ValueError('Invalid shapes: X={}, y={}'.format(X.shape, y.shape))
 
@@ -218,10 +212,27 @@ class BaseTree(ABC, BaseEstimator):
             if feature_names is None:
                 feature_names = ['x{}'.format(i) for i in range(X.shape[1])]
 
+        X = BaseTree._ensure_float64(X)
+
         if X.ndim != 2:
             raise ValueError('X should have 2 dimensions but has {}'.format(X.ndim))
 
         return X, feature_names
+
+    @staticmethod
+    def _ensure_float64(data):
+        if data.dtype in (
+                np.int8, np.int16, np.int32, np.int64,
+                np.uint8, np.uint16, np.uint32, np.uint64,
+                np.float32, np.float64):
+            return data
+
+        # convert to np.float64 for performance reasons (matrices with floats but of type object are very slow)
+        X_float = data.astype(np.float64)
+        if not np.all(data == X_float):
+            raise ValueError('Cannot convert data matrix to np.float64 without loss of precision. Please check your data.')
+
+        return X_float
 
     def _ensure_is_fitted(self, X=None):
         if self.posterior is None:
