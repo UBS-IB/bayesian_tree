@@ -1,6 +1,5 @@
 from abc import ABC
 
-import numba as nb
 import numpy as np
 from scipy.sparse import csr_matrix, csc_matrix
 
@@ -111,16 +110,20 @@ class BasePerpendicularTree(BaseTree, ABC):
             self.child1 = self.child_type(self.partition_prior, prior_child1, self.level+1)
             self.child2 = self.child_type(self.partition_prior, prior_child2, self.level+1)
 
-            if n1 > 1:
+            # fit children if there is more than one data point (i.e., there is
+            # something to split) and if the targets differ (no point otherwise)
+            y1 = y[indices1]
+            y2 = y[indices2]
+            if n1 > 1 and len(np.unique(y1)) > 1:
                 self.child1._fit(X, y, delta, verbose, feature_names, sort_indices_by_dim_1)
             else:
-                self.child1.posterior = self._compute_posterior(y[indices1])
+                self.child1.posterior = self._compute_posterior(y1)
                 self.child1.n_data = n1
 
-            if n2 > 1:
+            if n2 > 1 and len(np.unique(y2)) > 1:
                 self.child2._fit(X, y, delta, verbose, feature_names, sort_indices_by_dim_2)
             else:
-                self.child2.posterior = self._compute_posterior(y[indices2])
+                self.child2.posterior = self._compute_posterior(y2)
                 self.child2.n_data = n2
 
         # compute posterior
