@@ -1,5 +1,6 @@
 from abc import ABC
 
+import numba as nb
 import numpy as np
 from scipy.sparse import csr_matrix, csc_matrix
 
@@ -21,30 +22,42 @@ class BasePerpendicularTree(BaseTree, ABC):
         self.split_value = None
         self.split_feature_name = None
 
-    def _fit(self, X, y, delta, verbose, feature_names):
+    def _fit(self, X, y, delta, verbose, feature_names, sort_indices_by_dim=None):
+        n_data = sort_indices_by_dim.shape[1] if sort_indices_by_dim is not None else X.shape[0]
+
         if verbose:
-            print('Training level {} with {:10} data points'.format(self.level, len(y)))
+            print('Training level {} with {:10} data points'.format(self.level, n_data))
 
         dense = isinstance(X, np.ndarray)
         if not dense and isinstance(X, csr_matrix):
             # column accesses coming up, so convert to CSC sparse matrix format
             X = csc_matrix(X)
 
+        n_dim = X.shape[1]
+
+        # compute sort indices (only done once at the start)
+        if sort_indices_by_dim is None:
+            dtype = np.uint16 if n_data < (1 << 16) else np.uint32 if n_data < (1 << 32) else np.uint64
+            sort_indices_by_dim = np.zeros(X.shape[::-1], dtype=dtype)
+            for dim in range(n_dim):
+                X_dim = X[:, dim]
+                if not dense:
+                    X_dim = self._to_array(X_dim)
+
+                sort_indices_by_dim[dim] = np.argsort(X_dim)
+
         # compute data likelihood of not splitting and remember it as the best option so far
-        log_p_data_no_split = self._compute_log_p_data_no_split(y)
+        log_p_data_no_split = self._compute_log_p_data_no_split(y[sort_indices_by_dim[0]])  # any dim works as the order doesn't matter
         best_log_p_data_split = log_p_data_no_split
 
         # compute data likelihoods of all possible splits along all data dimensions
-        n_dim = X.shape[1]
         best_split_index = -1       # index of best split
         best_split_dimension = -1   # dimension of best split
         for dim in range(n_dim):
-            X_dim = X[:, dim]
+            sort_indices = sort_indices_by_dim[dim]
+            X_dim_sorted = X[sort_indices, dim]
             if not dense:
-                X_dim = X_dim.toarray().squeeze()
-
-            sort_indices = np.argsort(X_dim)
-            X_dim_sorted = X_dim[sort_indices]
+                X_dim_sorted = self._to_array(X_dim_sorted)
 
             split_indices = 1 + np.where(np.diff(X_dim_sorted) != 0)[0]  # we can only split between *different* data points
             if len(split_indices) == 0:
@@ -65,66 +78,60 @@ class BasePerpendicularTree(BaseTree, ABC):
         # did we find a split that has a higher likelihood than the no-split likelihood?
         if best_split_index > 0:
             # split data and target to recursively train children
-            X_best_split = X[:, best_split_dimension]
-            if not dense:
-                X_best_split = X_best_split.toarray().squeeze()
+            indices1 = sort_indices_by_dim[best_split_dimension, :best_split_index]
+            indices2 = sort_indices_by_dim[best_split_dimension, best_split_index:]
 
-            sort_indices = np.argsort(X_best_split)
-            y_sorted = y[sort_indices]
-            X_sorted = X[sort_indices]
-            if not dense:
-                # row accesses coming up, so convert to CSR sparse matrix format
-                X_sorted = csr_matrix(X_sorted)
+            # compute 'active' data indices for the children
+            active1 = np.zeros(X.shape[0], dtype=bool)
+            active2 = np.zeros(X.shape[0], dtype=bool)
+            active1[indices1] = True
+            active2[indices2] = True
 
-            X1 = X_sorted[:best_split_index]
-            X2 = X_sorted[best_split_index:]
-            y1 = y_sorted[:best_split_index]
-            y2 = y_sorted[best_split_index:]
+            # update sort indices for children based on the overall sort indices and the active data indices
+            sort_indices_by_dim_1 = np.array([si[active1[si]] for si in sort_indices_by_dim])
+            sort_indices_by_dim_2 = np.array([si[active2[si]] for si in sort_indices_by_dim])
+
+            n1 = sort_indices_by_dim_1.shape[1]
+            n2 = sort_indices_by_dim_2.shape[1]
 
             # compute posteriors of children and priors for further splitting
-            prior_child1 = self._compute_posterior(y1, delta)
-            prior_child2 = self._compute_posterior(y2, delta)
+            prior_child1 = self._compute_posterior(y[indices1], delta) if delta != 0 else self.prior
+            prior_child2 = self._compute_posterior(y[indices2], delta) if delta != 0 else self.prior
 
             # store split info, create children and continue training them if there's data left to split
             self.split_dimension = best_split_dimension
             self.split_feature_name = feature_names[best_split_dimension]
-            if dense:
-                self.split_value = 0.5 * (
-                        X_sorted[best_split_index-1, best_split_dimension]
-                        + X_sorted[best_split_index, best_split_dimension]
-                )
-            else:
-                self.split_value = 0.5 * (
-                        X_sorted[best_split_index-1, :].toarray()[0][best_split_dimension]
-                        + X_sorted[best_split_index, :].toarray()[0][best_split_dimension]
-                )
+            self.split_value = 0.5 * (
+                    X[indices1[-1], best_split_dimension]
+                    + X[indices2[0], best_split_dimension]
+            )
             self.log_p_data_no_split = log_p_data_no_split
             self.best_log_p_data_split = best_log_p_data_split
 
             self.child1 = self.child_type(self.partition_prior, prior_child1, self.level+1)
             self.child2 = self.child_type(self.partition_prior, prior_child2, self.level+1)
 
-            if X1.shape[0] > 1:
-                self.child1._fit(X1, y1, delta, verbose, feature_names)
+            if n1 > 1:
+                self.child1._fit(X, y, delta, verbose, feature_names, sort_indices_by_dim_1)
             else:
-                self.child1.posterior = self._compute_posterior(y1)
-                self.child1.n_data = X1.shape[0]
+                self.child1.posterior = self._compute_posterior(y[indices1])
+                self.child1.n_data = n1
 
-            if X2.shape[0] > 1:
-                self.child2._fit(X2, y2, delta, verbose, feature_names)
+            if n2 > 1:
+                self.child2._fit(X, y, delta, verbose, feature_names, sort_indices_by_dim_2)
             else:
-                self.child2.posterior = self._compute_posterior(y2)
-                self.child2.n_data = X2.shape[0]
+                self.child2.posterior = self._compute_posterior(y[indices2])
+                self.child2.n_data = n2
 
         # compute posterior
-        self.n_dim = X.shape[1]
-        self.n_data = X.shape[0]
-        self.posterior = self._compute_posterior(y)
+        self.n_dim = n_dim
+        self.n_data = n_data
+        self.posterior = self._compute_posterior(y[sort_indices_by_dim[0]])  # any dim works as the order doesn't matter
 
     def _compute_child1_and_child2_indices(self, X, dense):
         X_split = X[:, self.split_dimension]
         if not dense:
-            X_split = X_split.toarray().squeeze()
+            X_split = self._to_array(X_split)
 
         indices1 = np.where(X_split < self.split_value)[0]
         indices2 = np.where(X_split >= self.split_value)[0]
@@ -170,6 +177,11 @@ class BasePerpendicularTree(BaseTree, ABC):
         if depth_start != self.get_depth() or n_leaves_start != self.get_n_leaves():
             # we did some pruning somewhere down this sub-tree -> prune again
             self._prune()
+
+    @staticmethod
+    def _to_array(sparse_array):
+        array = sparse_array.toarray()
+        return array[0] if array.shape == (1, 1) else array.squeeze()
 
     def __str__(self):
         if self.posterior is None:

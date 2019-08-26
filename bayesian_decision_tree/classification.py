@@ -70,9 +70,9 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
         k1 = np.array(n_classes * [None])
         k2 = np.array(n_classes * [None])
         for i in range(n_classes):
-            k1_plus_sum = (y == i).cumsum()
-            total = k1_plus_sum[-1]
-            k1[i] = k1_plus_sum[split_indices-1]
+            k1_and_total = (y == i).cumsum()
+            total = k1_and_total[-1]
+            k1[i] = k1_and_total[split_indices-1]
             k2[i] = total - k1[i]
 
         betaln_prior = multivariate_betaln(alphas)
