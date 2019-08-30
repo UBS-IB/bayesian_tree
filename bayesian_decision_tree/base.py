@@ -90,7 +90,7 @@ class BaseTree(ABC, BaseEstimator):
             raise ValueError('Invalid shapes: X={}, y={}'.format(X.shape, y.shape))
 
         # fit
-        self._fit(X, y, delta, verbose, feature_names)
+        self._fit(X, y, delta, verbose, feature_names, 'root')
 
         if prune:
             self._prune()
@@ -154,8 +154,6 @@ class BaseTree(ABC, BaseEstimator):
             predictions[:] = prediction
             return predictions
         else:
-            # query children and then re-assemble
-
             dense = isinstance(X, np.ndarray)
             if not dense and isinstance(X, csr_matrix):
                 # column accesses coming up, so convert to CSC sparse matrix format
@@ -319,7 +317,7 @@ class BaseTree(ABC, BaseEstimator):
         pass
 
     @abstractmethod
-    def _fit(self, X, y, delta, verbose, feature_names):
+    def _fit(self, X, y, delta, verbose, feature_names, side_name):
         pass
 
     @abstractmethod

@@ -21,11 +21,72 @@ class BasePerpendicularTree(BaseTree, ABC):
         self.split_value = None
         self.split_feature_name = None
 
-    def _fit(self, X, y, delta, verbose, feature_names, sort_indices_by_dim=None):
+    def prediction_paths(self, X):
+        """Returns the prediction paths for X.
+
+        Parameters
+        ----------
+        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix, pandas.DataFrame or pandas.SparseDataFrame,
+            shape = [n_samples, n_features]
+
+            The input samples.
+
+        Returns
+        -------
+        prediction_paths : array-like, shape = [n_samples, 4]
+
+            The prediction paths, each row containing the following fields:
+            split dimension, split feature name, split value, True if greater than slit value and False otherwise
+        """
+
+        # input transformation and checks
+        X, _ = self._normalize_data_and_feature_names(X)
+        self._ensure_is_fitted(X)
+
+        paths = [[] for i in range(X.shape[0])]
+        self._update_prediction_paths(X, paths)
+
+        return paths
+
+    def _update_prediction_paths(self, X, paths):
+        if not self.is_leaf():
+            dense = isinstance(X, np.ndarray)
+            if not dense and isinstance(X, csr_matrix):
+                # column accesses coming up, so convert to CSC sparse matrix format
+                X = csc_matrix(X)
+
+            indices1, indices2 = self._compute_child1_and_child2_indices(X, dense)
+
+            if len(indices1) > 0:
+                step = (self.split_dimension, self.split_feature_name, self.split_value, False)
+                for i in indices1:
+                    paths[i].append(step)
+
+            if len(indices2) > 0:
+                step = (self.split_dimension, self.split_feature_name, self.split_value, True)
+                for i in indices2:
+                    paths[i].append(step)
+
+            if len(indices1) > 0 and not self.child1.is_leaf():
+                X1 = X[indices1]
+                paths1 = [paths[i] for i in indices1]
+                self.child1._update_prediction_paths(X1, paths1)
+
+            if len(indices2) > 0 and not self.child2.is_leaf():
+                X2 = X[indices2]
+                paths2 = [paths[i] for i in indices2]
+                self.child2._update_prediction_paths(X2, paths2)
+
+    @staticmethod
+    def _create_merged_paths_array(n_rows):
+        return np.zeros((n_rows, 4))
+
+    def _fit(self, X, y, delta, verbose, feature_names, side_name, sort_indices_by_dim=None):
         n_data = sort_indices_by_dim.shape[1] if sort_indices_by_dim is not None else X.shape[0]
 
         if verbose:
-            print('Training level {} with {:10} data points'.format(self.level, n_data))
+            name = 'level {} {}'.format(self.level, side_name)
+            print('Training {} with {:10} data points'.format(name, n_data))
 
         dense = isinstance(X, np.ndarray)
         if not dense and isinstance(X, csr_matrix):
@@ -90,8 +151,8 @@ class BasePerpendicularTree(BaseTree, ABC):
             sort_indices_by_dim_1 = np.array([si[active1[si]] for si in sort_indices_by_dim])
             sort_indices_by_dim_2 = np.array([si[active2[si]] for si in sort_indices_by_dim])
 
-            n1 = sort_indices_by_dim_1.shape[1]
-            n2 = sort_indices_by_dim_2.shape[1]
+            n_data1 = sort_indices_by_dim_1.shape[1]
+            n_data2 = sort_indices_by_dim_2.shape[1]
 
             # compute posteriors of children and priors for further splitting
             prior_child1 = self._compute_posterior(y[indices1], delta) if delta != 0 else self.prior
@@ -114,17 +175,17 @@ class BasePerpendicularTree(BaseTree, ABC):
             # something to split) and if the targets differ (no point otherwise)
             y1 = y[indices1]
             y2 = y[indices2]
-            if n1 > 1 and len(np.unique(y1)) > 1:
-                self.child1._fit(X, y, delta, verbose, feature_names, sort_indices_by_dim_1)
+            if n_data1 > 1 and len(np.unique(y1)) > 1:
+                self.child1._fit(X, y, delta, verbose, feature_names, 'LHS', sort_indices_by_dim_1)
             else:
                 self.child1.posterior = self._compute_posterior(y1)
-                self.child1.n_data = n1
+                self.child1.n_data = n_data1
 
-            if n2 > 1 and len(np.unique(y2)) > 1:
-                self.child2._fit(X, y, delta, verbose, feature_names, sort_indices_by_dim_2)
+            if n_data2 > 1 and len(np.unique(y2)) > 1:
+                self.child2._fit(X, y, delta, verbose, feature_names, 'RHS', sort_indices_by_dim_2)
             else:
                 self.child2.posterior = self._compute_posterior(y2)
-                self.child2.n_data = n2
+                self.child2.n_data = n_data2
 
         # compute posterior
         self.n_dim = n_dim

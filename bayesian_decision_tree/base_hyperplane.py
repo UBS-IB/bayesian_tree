@@ -28,9 +28,12 @@ class BaseHyperplaneTree(BaseTree, ABC):
         self.best_hyperplane_normal = None
         self.best_hyperplane_origin = None
 
-    def _fit(self, X, y, delta, verbose, feature_names):
+    def _fit(self, X, y, delta, verbose, feature_names, side_name):
+        n_data = X.shape[0]
+
         if verbose:
-            print('Training level {} with {:10} data points'.format(self.level, len(y)))
+            name = 'level {} {}'.format(self.level, side_name)
+            print('Training {} with {:10} data points'.format(name, n_data))
 
         dense = isinstance(X, np.ndarray)
         if not dense and isinstance(X, csr_matrix):
@@ -73,6 +76,9 @@ class BaseHyperplaneTree(BaseTree, ABC):
                 y1 = y[indices1]
                 y2 = y[indices2]
 
+                n_data1 = X1.shape[0]
+                n_data2 = X2.shape[0]
+
                 # compute posteriors of children and priors for further splitting
                 prior_child1 = self._compute_posterior(y1, 0)
                 prior_child2 = self._compute_posterior(y2, 0)
@@ -87,23 +93,23 @@ class BaseHyperplaneTree(BaseTree, ABC):
                 self.child1 = self.child_type(self.partition_prior, prior_child1, self.optimizer, self.level + 1)
                 self.child2 = self.child_type(self.partition_prior, prior_child2, self.optimizer, self.level + 1)
 
-            # fit children if there is more than one data point (i.e., there is
-            # something to split) and if the targets differ (no point otherwise)
-                if X1.shape[0] > 1 and len(np.unique(y1)) > 1:
-                    self.child1._fit(X1, y1, delta, verbose, feature_names)
+                # fit children if there is more than one data point (i.e., there is
+                # something to split) and if the targets differ (no point otherwise)
+                if n_data1 > 1 and len(np.unique(y1)) > 1:
+                    self.child1._fit(X1, y1, delta, verbose, feature_names, 'back ')
                 else:
                     self.child1.posterior = self._compute_posterior(y1)
-                    self.child1.n_data = X1.shape[0]
+                    self.child1.n_data = n_data1
 
-                if X2.shape[0] > 1 and len(np.unique(y2)) > 1:
-                    self.child2._fit(X2, y2, delta, verbose, feature_names)
+                if n_data2 > 1 and len(np.unique(y2)) > 1:
+                    self.child2._fit(X2, y2, delta, verbose, feature_names, 'front')
                 else:
                     self.child2.posterior = self._compute_posterior(y2)
-                    self.child2.n_data = X2.shape[0]
+                    self.child2.n_data = n_data2
 
         # compute posterior
         self.n_dim = X.shape[1]
-        self.n_data = X.shape[0]
+        self.n_data = n_data
         self.posterior = self._compute_posterior(y)
 
     def _compute_child1_and_child2_indices(self, X, dense):

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Experimental support for sparse DataFrames and sparse matrices (scipy.sparse) for fitting and prediction
 - Added `model.feature_importance()` for feature selection
 - All models now compatible with scikit-learn models
+- Lots of small changes here and there
 
 ### Changed
 - Some

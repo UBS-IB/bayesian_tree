@@ -1,8 +1,9 @@
 from unittest import TestCase
 
 import numpy as np
-from numpy.testing import assert_array_equal, assert_array_almost_equal
+import pandas as pd
 from numpy.random import normal, randint
+from numpy.testing import assert_array_equal, assert_array_almost_equal
 
 from bayesian_decision_tree.classification import PerpendicularClassificationTree
 from tests.unit.helper import data_matrix_transforms, create_classification_trees
@@ -139,6 +140,22 @@ class ClassificationTreeTest(TestCase):
                 for data_matrix_transform2 in data_matrix_transforms:
                     assert_array_almost_equal(model.predict_proba(data_matrix_transform2([[0, 0], [0, 1], [1, 0], [1, 1]])), expected)
 
+                if isinstance(model, PerpendicularClassificationTree):
+                    # TODO: also add for hyperplane version
+                    expected_paths = [
+                        [],
+                        [],
+                        [],
+                        [],
+                    ]
+                    self.assertEqual(model.prediction_paths([0, 0]), [expected_paths[0]])
+                    self.assertEqual(model.prediction_paths([0, 1]), [expected_paths[1]])
+                    self.assertEqual(model.prediction_paths([1, 0]), [expected_paths[2]])
+                    self.assertEqual(model.prediction_paths([1, 1]), [expected_paths[3]])
+
+                    for data_matrix_transform2 in data_matrix_transforms:
+                        self.assertEqual(model.prediction_paths(data_matrix_transform2([[0, 0], [0, 1], [1, 0], [1, 1]])), expected_paths)
+
     def test_one_split(self):
         for data_matrix_transform in data_matrix_transforms:
             for model in create_classification_trees(np.array([1, 1]), 0.7):
@@ -203,7 +220,7 @@ class ClassificationTreeTest(TestCase):
                     [0.0, 0.0, 0],
                     [0.1, 1.0, 0],
                     [0.2, 0.01, 0],
-                    [0.3, 0.09, 0],
+                    [0.3, 0.99, 0],
 
                     [0.7, 0.02, 1],
                     [0.8, 0.98, 1],
@@ -289,6 +306,29 @@ class ClassificationTreeTest(TestCase):
                     assert_array_equal(model.predict_proba(data_matrix_transform2(
                         [[0.0, 0.5], [0.4, 0.5], [0.6, 0.5], [1.4, 0.5], [1.6, 0.5], [100, 0.5]])
                     ), expected)
+
+                if isinstance(model, PerpendicularClassificationTree):
+                    # TODO: also add for hyperplane version
+                    feature_names = X.columns if isinstance(X, pd.DataFrame) else ['x{}'.format(i) for i in range(X.shape[1])]
+                    expected_paths = [
+                        [(0, feature_names[0], 0.5, False)],
+                        [(0, feature_names[0], 0.5, False)],
+                        [(0, feature_names[0], 0.5, True), (0, feature_names[0], 1.5, False)],
+                        [(0, feature_names[0], 0.5, True), (0, feature_names[0], 1.5, False)],
+                        [(0, feature_names[0], 0.5, True), (0, feature_names[0], 1.5, True)],
+                        [(0, feature_names[0], 0.5, True), (0, feature_names[0], 1.5, True)],
+                    ]
+                    self.assertEqual(model.prediction_paths([0, 0.5]), [expected_paths[0]])
+                    self.assertEqual(model.prediction_paths([0.4, 0.5]), [expected_paths[1]])
+                    self.assertEqual(model.prediction_paths([0.6, 0.5]), [expected_paths[2]])
+                    self.assertEqual(model.prediction_paths([1.4, 0.5]), [expected_paths[3]])
+                    self.assertEqual(model.prediction_paths([1.6, 0.5]), [expected_paths[4]])
+                    self.assertEqual(model.prediction_paths([100, 0.5]), [expected_paths[5]])
+
+                    for data_matrix_transform2 in data_matrix_transforms:
+                        self.assertEqual(model.prediction_paths(data_matrix_transform2(
+                            [[0.0, 0.5], [0.4, 0.5], [0.6, 0.5], [1.4, 0.5], [1.6, 0.5], [100, 0.5]])
+                        ), expected_paths)
 
     def test_prune(self):
         models = lambda: create_classification_trees(np.array([10, 10]), 0.9)
