@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.2.0] - 2019-09-02
+## [0.2] - 2019-09-02
 ### Added
 - Experimental support for arbitrarily-oriented hyperplane splits rather than axis-perpendicular ones only
 - Experimental support for sparse DataFrames and sparse matrices (scipy.sparse) for fitting and prediction
@@ -14,6 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - Lots of small changes here and there
 
-## [0.1.0] - 2019-02-06
+## [0.1] - 2019-02-06
 ### Added
 - First release
