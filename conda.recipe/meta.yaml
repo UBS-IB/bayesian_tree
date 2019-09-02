@@ -46,5 +46,5 @@ test:
     - pytest 
 
 about:
-  home: https://github.com/AA42557-QUAD-DS/hadoop-utils
+  home: https://github.com/AA42557-QUAD-DS/bayesian_tree
   summary: Short description
