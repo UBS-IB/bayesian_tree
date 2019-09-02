@@ -25,7 +25,7 @@ requirements:
     - python
     - setuptools
   run:
-    - python
+    - python=3.7.1
     - matplotlib 
     - scipy 
     - numpy 
