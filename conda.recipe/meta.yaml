@@ -25,13 +25,11 @@ requirements:
     - python
     - setuptools
   run:
-    - python=3.7.1
-    - matplotlib 
-    - scipy 
-    - numpy 
-    - pandas 
-    - requests
-    - scikit-learn
+    - python
+    {% for dep in data['install_requires'] %}
+    - {{ dep.lower() }}
+    {% endfor %}
+    {# raw is for ignoring templating with cookiecutter, leaving it for use with conda-build #}
 
 test:
   source_files:
