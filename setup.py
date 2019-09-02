@@ -28,7 +28,7 @@ requirements = [
     'scipy>=1.2.*',
     'numpy>=1.13.*',
     'pandas>=0.23.*',
-    'requests==2.19.1',
+    'requests==2.21.0',
     'scikit-learn>=0.19.*',
 ]
 
