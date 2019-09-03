@@ -10,7 +10,7 @@ This package implements:
   * **Perpendicular Trees**:
     The classic decision/regression tree structure with splits along a single
     feature dimension (i.e., _perpendicular_ to a feature dimension axis),
-    analogous to e.g. the skikit-learn
+    analogous to e.g. the scikit-learn
     [decision](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html)
     and
     [regression](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeRegressor.html)
