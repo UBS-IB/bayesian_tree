@@ -29,10 +29,7 @@ class BaseTree(ABC, BaseEstimator):
         self.n_dim = None
         self.posterior = None
         self.n_data = None
-        self.child1 = None
-        self.child2 = None
-        self.log_p_data_no_split = None
-        self.best_log_p_data_split = None
+        self._erase_split_info_base()
 
     def fit(self, X, y, delta=0.0, prune=False, verbose=False, feature_names=None):
         """
@@ -287,6 +284,12 @@ class BaseTree(ABC, BaseEstimator):
                 n_leaves = self.child2._update_n_leaves(n_leaves)
 
             return n_leaves
+
+    def _erase_split_info_base(self):
+        self.child1 = None
+        self.child2 = None
+        self.log_p_data_no_split = None
+        self.best_log_p_data_split = None
 
     @abstractmethod
     def is_leaf(self):

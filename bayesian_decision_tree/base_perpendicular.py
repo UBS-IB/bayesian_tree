@@ -16,10 +16,7 @@ class BasePerpendicularTree(BaseTree, ABC):
     def __init__(self, partition_prior, prior, child_type, is_regression, level):
         BaseTree.__init__(self, partition_prior, prior, child_type, is_regression, level)
 
-        # to be set later
-        self.split_dimension = -1
-        self.split_value = None
-        self.split_feature_name = None
+        self._erase_split_info()
 
     def prediction_paths(self, X):
         """Returns the prediction paths for X.
@@ -226,14 +223,8 @@ class BasePerpendicularTree(BaseTree, ABC):
         if self.child1.is_leaf() and self.child2.is_leaf():
             if self.child1._predict_leaf() == self.child2._predict_leaf():
                 # same prediction (class if classification, value if regression) -> no need to split
-                self.child1 = None
-                self.child2 = None
-                self.log_p_data_no_split = None
-                self.best_log_p_data_split = None
-
-                self.split_dimension = -1
-                self.split_value = None
-                self.split_feature_name = None
+                self._erase_split_info_base()
+                self._erase_split_info()
         else:
             self.child1._prune()
             self.child2._prune()
@@ -241,6 +232,11 @@ class BasePerpendicularTree(BaseTree, ABC):
         if depth_start != self.get_depth() or n_leaves_start != self.get_n_leaves():
             # we did some pruning somewhere down this sub-tree -> prune again
             self._prune()
+
+    def _erase_split_info(self):
+        self.split_dimension = -1
+        self.split_value = None
+        self.split_feature_name = None
 
     @staticmethod
     def _to_array(sparse_array):

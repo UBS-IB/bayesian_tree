@@ -24,9 +24,7 @@ class BaseHyperplaneTree(BaseTree, ABC):
 
         self.optimizer = optimizer
 
-        # to be set later
-        self.best_hyperplane_normal = None
-        self.best_hyperplane_origin = None
+        self._erase_split_info()
 
     def _fit(self, X, y, delta, verbose, feature_names, side_name):
         n_data = X.shape[0]
@@ -156,13 +154,8 @@ class BaseHyperplaneTree(BaseTree, ABC):
         if self.child1.is_leaf() and self.child2.is_leaf():
             if self.child1._predict_leaf() == self.child2._predict_leaf():
                 # same prediction (class if classification, value if regression) -> no need to split
-                self.child1 = None
-                self.child2 = None
-                self.log_p_data_no_split = None
-                self.best_log_p_data_split = None
-
-                self.best_hyperplane_normal = None
-                self.best_hyperplane_origin = None
+                self._erase_split_info_base()
+                self._erase_split_info()
         else:
             self.child1._prune()
             self.child2._prune()
@@ -170,6 +163,10 @@ class BaseHyperplaneTree(BaseTree, ABC):
         if depth_start != self.get_depth() or n_leaves_start != self.get_n_leaves():
             # we did some pruning somewhere down this sub-tree -> prune again
             self._prune()
+
+    def _erase_split_info(self):
+        self.best_hyperplane_normal = None
+        self.best_hyperplane_origin = None
 
     def __str__(self):
         if self.posterior is None:
