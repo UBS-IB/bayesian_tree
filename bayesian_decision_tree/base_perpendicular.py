@@ -33,7 +33,7 @@ class BasePerpendicularTree(BaseTree, ABC):
         prediction_paths : array-like, shape = [n_samples, 4]
 
             The prediction paths, each row containing the following fields:
-            split dimension, split feature name, split value, True if greater than slit value and False otherwise
+            split dimension, split feature name, split value, True if greater than the split value and False otherwise
         """
 
         # input transformation and checks
