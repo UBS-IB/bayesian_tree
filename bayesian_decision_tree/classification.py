@@ -55,10 +55,8 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
         alphas = self.prior
         alphas_post = self._compute_posterior(y)
 
-        betaln_prior = multivariate_betaln(alphas)
         log_p_prior = np.log(1-self.partition_prior**(1+self.level))
-
-        log_p_data = multivariate_betaln(alphas_post) - betaln_prior
+        log_p_data = multivariate_betaln(alphas_post) - multivariate_betaln(alphas)
 
         return log_p_prior + log_p_data
 
@@ -78,8 +76,8 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
         betaln_prior = multivariate_betaln(alphas)
         log_p_prior = np.log(self.partition_prior**(1+self.level) / (n_splits * n_dim))
 
-        log_p_data1 = self._compute_log_p_data(k1, betaln_prior, len(y))
-        log_p_data2 = self._compute_log_p_data(k2, betaln_prior, len(y))
+        log_p_data1 = self._compute_log_p_data(k1, betaln_prior)
+        log_p_data2 = self._compute_log_p_data(k2, betaln_prior)
 
         return log_p_prior + log_p_data1 + log_p_data2
 
@@ -100,7 +98,7 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
         alphas = self.posterior
         return alphas / np.sum(alphas)
 
-    def _compute_log_p_data(self, k, betaln_prior, n):
+    def _compute_log_p_data(self, k, betaln_prior):
         alphas = self.prior
 
         # see https://www.cs.ubc.ca/~murphyk/Teaching/CS340-Fall06/reading/bernoulli.pdf, equation (42)
