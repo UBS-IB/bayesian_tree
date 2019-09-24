@@ -43,9 +43,18 @@ This package implements:
 
 ## Installation
 
-To install simply run the following:
+To install you can either use _conda_ or _pip_:
+
+#### Conda
 ```
 conda install bayesian_decision_tree
+```
+
+#### PIP
+```
+git clone https://github.com/UBS-IB/bayesian_tree
+cd bayesian_tree
+pip install -e .
 ```
 
 ## Usage
