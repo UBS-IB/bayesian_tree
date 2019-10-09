@@ -63,8 +63,8 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
     def _compute_log_p_data_split(self, y, split_indices, n_dim):
         alphas = self.prior
         n_classes = len(alphas)
-        k1 = np.array(n_classes * [None])
-        k2 = np.array(n_classes * [None])
+        k1 = np.empty(n_classes, dtype=object)
+        k2 = np.empty(n_classes, dtype=object)
         for i in range(n_classes):
             k1_and_total = (y == i).cumsum()
             total = k1_and_total[-1]

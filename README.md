@@ -19,7 +19,7 @@ This package implements:
     The models are called
     [`PerpendicularClassificationTree`](bayesian_decision_tree/classification.py)
     and
-    [`PerpendicularRegressionTree`](bayesian_decision_tree/regression.py)
+    [`PerpendicularRegressionTree`](bayesian_decision_tree/regression.py).
      
   * **Hyperplane Trees**:
     Decision/regression trees using _arbitrarily-oriented hyperplanes_. These models
