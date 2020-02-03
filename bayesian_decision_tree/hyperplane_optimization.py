@@ -13,9 +13,10 @@ class HyperplaneOptimizationFunction:
     data likelihood is maximized.
     """
 
-    def __init__(self, X, y, compute_log_p_data_split, log_p_data_no_split, search_space_is_unit_hypercube):
+    def __init__(self, X, y, prior, compute_log_p_data_split, log_p_data_no_split, search_space_is_unit_hypercube):
         self.X = X
         self.y = y
+        self.prior = prior
         self.compute_log_p_data_split = compute_log_p_data_split
         self.log_p_data_no_split = log_p_data_no_split
         self.search_space_is_unit_hypercube = search_space_is_unit_hypercube
@@ -91,7 +92,7 @@ class HyperplaneOptimizationFunction:
 
         # compute data likelihoods of all possible splits along this projection and find split with highest data likelihood
         n_dim = self.X.shape[1]
-        log_p_data_split = self.compute_log_p_data_split(y_sorted, split_indices, n_dim)
+        log_p_data_split = self.compute_log_p_data_split(y_sorted, self.prior, split_indices)
         i_max = log_p_data_split.argmax()
         if log_p_data_split[i_max] >= self.best_log_p_data_split:
             best_split_index = split_indices[i_max]

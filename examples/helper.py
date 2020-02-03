@@ -233,14 +233,14 @@ def draw_node_2d_perpendicular(node, bounds, colormap, n_classes):
 
         plt.gca().add_patch(patches.Rectangle((x, y), w, h, color=colormap(mean/n_classes), alpha=0.1, linewidth=0))
     else:
-        draw_node_2d_perpendicular(node.child1, compute_child_bounds_2d_perpendicular(bounds, node, True), colormap, n_classes)
-        draw_node_2d_perpendicular(node.child2, compute_child_bounds_2d_perpendicular(bounds, node, False), colormap, n_classes)
+        draw_node_2d_perpendicular(node.child1_, compute_child_bounds_2d_perpendicular(bounds, node, True), colormap, n_classes)
+        draw_node_2d_perpendicular(node.child2_, compute_child_bounds_2d_perpendicular(bounds, node, False), colormap, n_classes)
 
 
 def compute_child_bounds_2d_perpendicular(bounds, parent, lower):
-    b = bounds[parent.split_dimension]
-    b = (b[0], min(b[1], parent.split_value)) if lower else (max(b[0], parent.split_value), b[1])
-    return (b, bounds[1]) if parent.split_dimension == 0 else (bounds[0], b)
+    b = bounds[parent.split_dimension_]
+    b = (b[0], min(b[1], parent.split_value_)) if lower else (max(b[0], parent.split_value_), b[1])
+    return (b, bounds[1]) if parent.split_dimension_ == 0 else (bounds[0], b)
 
 
 def compute_child_bounds_1d_perpendicular(bounds, parent, lower):
@@ -260,8 +260,8 @@ def draw_node_1d_perpendicular(node, bounds):
         # color = color0 if mean < 0.5 else color1
         plt.plot([x0, x1], [mean, mean], 'r')
     else:
-        draw_node_1d_perpendicular(node.child1, compute_child_bounds_1d_perpendicular(bounds, node, True))
-        draw_node_1d_perpendicular(node.child2, compute_child_bounds_1d_perpendicular(bounds, node, False))
+        draw_node_1d_perpendicular(node.child1_, compute_child_bounds_1d_perpendicular(bounds, node, True))
+        draw_node_1d_perpendicular(node.child2_, compute_child_bounds_1d_perpendicular(bounds, node, False))
 
 
 class Line:
@@ -371,7 +371,7 @@ def draw_node_2d_hyperplane(node, bounds, colormap, n_classes):
 
         # plt.gca().add_patch(patches.Rectangle((x, y), w, h, color=colormap(mean/n_classes), alpha=0.1, linewidth=0))
     else:
-        line = Line(node.best_hyperplane_origin, node.best_hyperplane_normal)
+        line = Line(node.best_hyperplane_origin_, node.best_hyperplane_normal_)
 
         x_min = -np.inf
         x_max = np.inf
@@ -399,5 +399,5 @@ def draw_node_2d_hyperplane(node, bounds, colormap, n_classes):
 
         bounds_for_children = bounds.copy()
         bounds_for_children.append(line)
-        draw_node_2d_hyperplane(node.child1, bounds_for_children, colormap, n_classes)
-        draw_node_2d_hyperplane(node.child2, bounds_for_children, colormap, n_classes)
+        draw_node_2d_hyperplane(node.child1_, bounds_for_children, colormap, n_classes)
+        draw_node_2d_hyperplane(node.child2_, bounds_for_children, colormap, n_classes)

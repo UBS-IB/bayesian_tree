@@ -44,11 +44,11 @@ class RegressionTreeTest(TestCase):
         for data_matrix_transform in data_matrix_transforms:
             for model in create_regression_trees(prior, 0.5):
                 Xy = np.array([
-                    [0.0, 0.0, 0],
-                    [0.0, 1.0, 1],
-                    [1.0, 1.0, 0],
-                    [1.0, 0.0, 1],
-                    [1.0, 0.0, 0],
+                    [0.0, 0.0, 0.1],
+                    [0.0, 1.0, 1.0],
+                    [1.0, 1.0, 0.1],
+                    [1.0, 0.0, 1.0],
+                    [1.0, 0.0, 0.1],
                 ])
                 X = Xy[:, :-1]
                 y = Xy[:, -1]
@@ -59,7 +59,7 @@ class RegressionTreeTest(TestCase):
                 model.fit(X, y)
                 print(model)
 
-                model.predict([0, 0])
+                model.predict([[0, 0]])
 
                 try:
                     model.predict(0)
@@ -115,16 +115,16 @@ class RegressionTreeTest(TestCase):
 
                 self.assertEqual(model.get_depth(), 0)
                 self.assertEqual(model.get_n_leaves(), 1)
-                self.assertEqual(model.n_data, 5)
+                self.assertEqual(model.n_data_, 5)
 
-                self.assertIsNone(model.child1)
-                self.assertIsNone(model.child2)
+                self.assertIsNone(model.child1_)
+                self.assertIsNone(model.child2_)
 
                 if isinstance(model, PerpendicularRegressionTree):
-                    self.assertEqual(model.split_dimension, -1)
-                    self.assertEqual(model.split_value, None)
+                    self.assertEqual(model.split_dimension_, -1)
+                    self.assertEqual(model.split_value_, None)
                 else:
-                    self.assertEqual(model.best_hyperplane_origin, None)
+                    self.assertEqual(model.best_hyperplane_origin_, None)
 
                 n = len(y)
                 mean = y.mean()
@@ -133,10 +133,10 @@ class RegressionTreeTest(TestCase):
                 mu_post = (kappa*mu + n*mean) / kappa_post
 
                 expected = np.array([mu_post, mu_post, mu_post, mu_post])
-                self.assertEqual(model.predict([0.0, 0.5]), np.expand_dims(expected[0], 0))
-                self.assertEqual(model.predict([0.49, 0.5]), np.expand_dims(expected[1], 0))
-                self.assertEqual(model.predict([0.51, 0.5]), np.expand_dims(expected[2], 0))
-                self.assertEqual(model.predict([1.0, 0.5]), np.expand_dims(expected[3], 0))
+                self.assertEqual(model.predict([[0.0, 0.5]]), np.expand_dims(expected[0], 0))
+                self.assertEqual(model.predict([[0.49, 0.5]]), np.expand_dims(expected[1], 0))
+                self.assertEqual(model.predict([[0.51, 0.5]]), np.expand_dims(expected[2], 0))
+                self.assertEqual(model.predict([[1.0, 0.5]]), np.expand_dims(expected[3], 0))
 
                 for data_matrix_transform2 in data_matrix_transforms:
                     assert_array_equal(model.predict(data_matrix_transform2([[0.0, 0.5], [0.49, 0.5], [0.51, 0.5], [1.0, 0.5]])), expected)

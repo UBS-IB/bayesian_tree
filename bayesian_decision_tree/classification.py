@@ -20,8 +20,8 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
     medium-level fitting and prediction tasks and outsources the low-level work to subclasses.
     """
 
-    def __init__(self, partition_prior, prior, child_type, level=0):
-        super().__init__(partition_prior, prior, child_type, False, level)
+    def __init__(self, partition_prior, prior, delta, prune, child_type, level=0):
+        BaseTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, level)
 
     def predict_proba(self, X):
         """Predict class probabilities of the input samples X.
@@ -51,18 +51,23 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
         if not np.all(np.unique(y) == np.arange(0, n_classes)):
             raise ValueError('Expected target values 0..{} but found {}..{}'.format(n_classes - 1, y.min(), y.max()))
 
-    def _compute_log_p_data_no_split(self, y):
-        alphas = self.prior
-        alphas_post = self._compute_posterior(y)
+    def _get_prior(self, n_data, n_dim):
+        if self.prior is not None:
+            return self.prior
+        else:
+            prior_pseudo_observation_count = max(1, n_data//100)
+            return prior_pseudo_observation_count * np.ones(n_dim)
+
+    def _compute_log_p_data_no_split(self, y, prior):
+        posterior = self._compute_posterior(y, prior)
 
         log_p_prior = np.log(1-self.partition_prior**(1+self.level))
-        log_p_data = multivariate_betaln(alphas_post) - multivariate_betaln(alphas)
+        log_p_data = multivariate_betaln(posterior) - multivariate_betaln(prior)
 
         return log_p_prior + log_p_data
 
-    def _compute_log_p_data_split(self, y, split_indices, n_dim):
-        alphas = self.prior
-        n_classes = len(alphas)
+    def _compute_log_p_data_split(self, y, prior, split_indices):
+        n_classes = len(prior)
         k1 = np.empty(n_classes, dtype=object)
         k2 = np.empty(n_classes, dtype=object)
         for i in range(n_classes):
@@ -72,41 +77,38 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
             k2[i] = total - k1[i]
 
         n_splits = len(split_indices)
+        n_dim = len(prior)
         log_p_prior = np.log(self.partition_prior**(1+self.level) / (n_splits * n_dim))
 
-        betaln_prior = multivariate_betaln(alphas)
-        log_p_data1 = self._compute_log_p_data(k1, betaln_prior)
-        log_p_data2 = self._compute_log_p_data(k2, betaln_prior)
+        betaln_prior = multivariate_betaln(prior)
+        log_p_data1 = self._compute_log_p_data(k1, prior, betaln_prior)
+        log_p_data2 = self._compute_log_p_data(k2, prior, betaln_prior)
 
         return log_p_prior + log_p_data1 + log_p_data2
 
-    def _compute_posterior(self, y, delta=1):
-        alphas = self.prior
+    def _compute_posterior(self, y, prior, delta=1):
         if delta == 0:
-            return alphas
+            return prior
 
         # see https://en.wikipedia.org/wiki/Conjugate_prior#Discrete_distributions
-        y_reshaped = np.broadcast_to(y, (len(alphas), len(y)))
-        classes = np.arange(len(alphas)).reshape(-1, 1)
+        y_reshaped = np.broadcast_to(y, (len(prior), len(y)))
+        classes = np.arange(len(prior)).reshape(-1, 1)
         k = np.sum(y_reshaped == classes, axis=1)
-        alphas_post = alphas + delta*k
+        posterior = prior + delta*k
 
-        return alphas_post
+        return posterior
 
     def _compute_posterior_mean(self):
-        alphas = self.posterior
-        return alphas / np.sum(alphas)
+        return self.posterior_ / np.sum(self.posterior_)
 
-    def _compute_log_p_data(self, k, betaln_prior):
-        alphas = self.prior
-
+    def _compute_log_p_data(self, k, prior, betaln_prior):
         # see https://www.cs.ubc.ca/~murphyk/Teaching/CS340-Fall06/reading/bernoulli.pdf, equation (42)
         # which can be expressed as a fraction of beta functions
-        return multivariate_betaln(alphas+k) - betaln_prior
+        return multivariate_betaln(prior+k) - betaln_prior
 
     def _predict_leaf(self):
         # predict class
-        return np.argmax(self.posterior)
+        return np.argmax(self.posterior_)
 
 
 class PerpendicularClassificationTree(BasePerpendicularTree, BaseClassificationTree):
@@ -136,6 +138,18 @@ class PerpendicularClassificationTree(BasePerpendicularTree, BaseClassificationT
         Large values for alpha_i represent a strong prior and thus put less weight
         on the data. This can be used for regularization.
 
+    delta : float, default=0.0
+        Determines the strengthening of the prior as the tree grows deeper,
+        see [1]. Must be a value between 0.0 and 1.0.
+
+    prune : boolean, default=False
+        Prunes the tree after fitting if `True` by removing all splits that don't add information,
+        i.e., where the predictions of both children are identical. It's usually sensible to set
+        this to `True` in the classification case if you're only interested in class predictions
+        (`predict(X)`), but it makes sense to set it to `False` if you're looking for class
+        probabilities (`predict_proba(X)`). It can safely be set to 'True' in the regression case
+        because it will only merge children if their predictions are identical.
+
     level : DO NOT SET, ONLY USED BY SUBCLASSES
 
     See also
@@ -156,10 +170,10 @@ class PerpendicularClassificationTree(BasePerpendicularTree, BaseClassificationT
     See `demo_classification_perpendicular.py`.
     """
 
-    def __init__(self, partition_prior, prior, level=0):
+    def __init__(self, partition_prior=0.99, prior=None, delta=0, prune=False, level=0):
         child_type = PerpendicularClassificationTree
-        BasePerpendicularTree.__init__(self, partition_prior, prior, child_type, False, level)
-        BaseClassificationTree.__init__(self, partition_prior, prior, child_type, level)
+        BasePerpendicularTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, level)
+        BaseClassificationTree.__init__(self, partition_prior, prior, delta, prune, child_type, level)
 
 
 class HyperplaneClassificationTree(BaseHyperplaneTree, BaseClassificationTree):
@@ -189,6 +203,18 @@ class HyperplaneClassificationTree(BaseHyperplaneTree, BaseClassificationTree):
 
         Large values for alpha_i represent a strong prior and thus put less weight
         on the data. This can be used for regularization.
+
+    delta : float, default=0.0
+        Determines the strengthening of the prior as the tree grows deeper,
+        see [1]. Must be a value between 0.0 and 1.0.
+
+    prune : boolean, default=False
+        Prunes the tree after fitting if `True` by removing all splits that don't add information,
+        i.e., where the predictions of both children are identical. It's usually sensible to set
+        this to `True` in the classification case if you're only interested in class predictions
+        (`predict(X)`), but it makes sense to set it to `False` if you're looking for class
+        probabilities (`predict_proba(X)`). It can safely be set to 'True' in the regression case
+        because it will only merge children if their predictions are identical.
 
     optimizer : object
         A global optimization algorithm object that performs optimal hyperparameter
@@ -220,7 +246,7 @@ class HyperplaneClassificationTree(BaseHyperplaneTree, BaseClassificationTree):
     See `demo_classification_perpendicular.py`.
     """
 
-    def __init__(self, partition_prior, prior, optimizer=None, level=0):
+    def __init__(self, partition_prior=0.99, prior=None, delta=None, prune=False, optimizer=None, level=0):
         child_type = HyperplaneClassificationTree
-        BaseHyperplaneTree.__init__(self, partition_prior, prior, child_type, False, optimizer, level)
-        BaseClassificationTree.__init__(self, partition_prior, prior, child_type, level)
+        BaseHyperplaneTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, optimizer, level)
+        BaseClassificationTree.__init__(self, partition_prior, prior, delta, prune, child_type, level)

@@ -20,24 +20,24 @@ class BaseRegressionTree(BaseTree, ABC, RegressorMixin):
     medium-level fitting and prediction tasks and outsources the low-level work to subclasses.
     """
 
-    def __init__(self, partition_prior, prior, child_type, level=0):
-        super().__init__(partition_prior, prior, child_type, True, level)
+    def __init__(self, partition_prior, prior, delta, prune, child_type, level=0):
+        BaseTree.__init__(self, partition_prior, prior, delta, prune, child_type, True, level)
 
     def _check_target(self, y):
         if y.ndim != 1:
             raise ValueError('y should have 1 dimension but has {}'.format(y.ndim))
 
-    def _compute_log_p_data_no_split(self, y):
+    def _compute_log_p_data_no_split(self, y, prior):
         mean = y.mean()
         y_minus_mean_sq_sum = ((y - mean)**2).sum()
         n = len(y)
-        mu_post, kappa_post, alpha_post, beta_post = self._compute_posterior_internal(n, mean, y_minus_mean_sq_sum)
+        mu_post, kappa_post, alpha_post, beta_post = self._compute_posterior_internal(prior, n, mean, y_minus_mean_sq_sum)
         log_p_prior = np.log(1 - self.partition_prior**(1 + self.level))
-        log_p_data = self._compute_log_p_data(alpha_post, beta_post, kappa_post, n)
+        log_p_data = self._compute_log_p_data(prior, alpha_post, beta_post, kappa_post, n)
 
         return log_p_prior + log_p_data
 
-    def _compute_log_p_data_split(self, y, split_indices, n_dim):
+    def _compute_log_p_data_split(self, y, prior, split_indices):
         n = len(y)
         n1 = np.arange(1, n)
         n2 = n - n1
@@ -58,29 +58,43 @@ class BaseRegressionTree(BaseTree, ABC, RegressorMixin):
             y_minus_mean_sq_sum1 = y_minus_mean_sq_sum1[split_indices_minus_1]
             y_minus_mean_sq_sum2 = y_minus_mean_sq_sum2[split_indices_minus_1]
 
-        mu1, kappa1, alpha1, beta1 = self._compute_posterior_internal(n1, mean1, y_minus_mean_sq_sum1)
-        mu2, kappa2, alpha2, beta2 = self._compute_posterior_internal(n2, mean2, y_minus_mean_sq_sum2)
+        mu1, kappa1, alpha1, beta1 = self._compute_posterior_internal(prior, n1, mean1, y_minus_mean_sq_sum1)
+        mu2, kappa2, alpha2, beta2 = self._compute_posterior_internal(prior, n2, mean2, y_minus_mean_sq_sum2)
 
         n_splits = len(split_indices)
+        n_dim = len(prior)
         log_p_prior = np.log(self.partition_prior**(1+self.level) / (n_splits * n_dim))
 
-        log_p_data1 = self._compute_log_p_data(alpha1, beta1, kappa1, n1)
-        log_p_data2 = self._compute_log_p_data(alpha2, beta2, kappa2, n2)
+        log_p_data1 = self._compute_log_p_data(prior, alpha1, beta1, kappa1, n1)
+        log_p_data2 = self._compute_log_p_data(prior, alpha2, beta2, kappa2, n2)
 
         return log_p_prior + log_p_data1 + log_p_data2
 
-    def _compute_posterior(self, y, delta=1):
-        if delta == 0:
+    def _get_prior(self, n_data, n_dim):
+        if self.prior is not None:
             return self.prior
+        else:
+            # TODO: use actual data to compute mu and tau
+            prior_pseudo_observation_count = max(1, n_data//100)
+            mu = 0
+            tau = 1
+            kappa = prior_pseudo_observation_count
+            alpha = prior_pseudo_observation_count/2
+            beta = alpha/tau
+            return np.array([mu, kappa, alpha, beta])
+
+    def _compute_posterior(self, y, prior, delta=1):
+        if delta == 0:
+            return prior
 
         n = len(y)
         mean = y.mean()
         y_minus_mean_sq_sum = ((y - mean)**2).sum()
 
-        return self._compute_posterior_internal(n, mean, y_minus_mean_sq_sum, delta)
+        return self._compute_posterior_internal(prior, n, mean, y_minus_mean_sq_sum, delta)
 
-    def _compute_posterior_internal(self, n, mean, y_minus_mean_sq_sum, delta=1):
-        mu, kappa, alpha, beta = self.prior
+    def _compute_posterior_internal(self, prior, n, mean, y_minus_mean_sq_sum, delta=1):
+        mu, kappa, alpha, beta = prior
 
         # see https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf, equations (86) - (89)
         n_delta = n*delta
@@ -92,10 +106,10 @@ class BaseRegressionTree(BaseTree, ABC, RegressorMixin):
         return mu_post, kappa_post, alpha_post, beta_post
 
     def _compute_posterior_mean(self):
-        return self.posterior[0]  # mu is the posterior mean
+        return self.posterior_[0]  # mu is the posterior mean
 
-    def _compute_log_p_data(self, alpha_new, beta_new, kappa_new, n_new):
-        mu, kappa, alpha, beta = self.prior
+    def _compute_log_p_data(self, prior, alpha_new, beta_new, kappa_new, n_new):
+        mu, kappa, alpha, beta = prior
 
         # see https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf, equation (95)
         return (gammaln(alpha_new) - gammaln(alpha)
@@ -136,6 +150,10 @@ class PerpendicularRegressionTree(BasePerpendicularTree, BaseRegressionTree):
         It is usually easier to compute these hyperparameters off more intuitive
         base quantities, see examples section.
 
+    delta : float, default=0.0
+        Determines the strengthening of the prior as the tree grows deeper,
+        see [1]. Must be a value between 0.0 and 1.0.
+
     level : DO NOT SET, ONLY USED BY SUBCLASSES
 
     See also
@@ -175,10 +193,10 @@ class PerpendicularRegressionTree(BasePerpendicularTree, BaseRegressionTree):
     See `demo_regression_perpendicular.py`.
     """
 
-    def __init__(self, partition_prior, prior, level=0):
+    def __init__(self, partition_prior=0.99, prior=None, delta=0, prune=False, level=0):
         child_type = PerpendicularRegressionTree
-        BasePerpendicularTree.__init__(self, partition_prior, prior, child_type, True, level)
-        BaseRegressionTree.__init__(self, partition_prior, prior, child_type, level)
+        BasePerpendicularTree.__init__(self, partition_prior, prior, delta, prune, child_type, True, level)
+        BaseRegressionTree.__init__(self, partition_prior, prior, delta, prune, child_type, level)
 
 
 class HyperplaneRegressionTree(BaseHyperplaneTree, BaseRegressionTree):
@@ -208,6 +226,10 @@ class HyperplaneRegressionTree(BaseHyperplaneTree, BaseRegressionTree):
 
         It is usually easier to compute these hyperparameters off more intuitive
         base quantities, see examples section.
+
+    delta : float, default=0.0
+        Determines the strengthening of the prior as the tree grows deeper,
+        see [1]. Must be a value between 0.0 and 1.0.
 
     optimizer : object
         A global optimization algorithm object that performs optimal hyperparameter
@@ -244,7 +266,7 @@ class HyperplaneRegressionTree(BaseHyperplaneTree, BaseRegressionTree):
     See `demo_regression_hyperplane.py`.
     """
 
-    def __init__(self, partition_prior, prior, optimizer=None, level=0):
+    def __init__(self, partition_prior=0.99, prior=None, delta=0, prune=False, optimizer=None, level=0):
         child_type = HyperplaneRegressionTree
-        BaseHyperplaneTree.__init__(self, partition_prior, prior, child_type, True, optimizer, level)
-        BaseRegressionTree.__init__(self, partition_prior, prior, child_type, level)
+        BaseHyperplaneTree.__init__(self, partition_prior, prior, delta, prune, child_type, True, optimizer, level)
+        BaseRegressionTree.__init__(self, partition_prior, prior, delta, prune, child_type, level)

@@ -18,14 +18,14 @@ data_matrix_transforms = [
 
 
 # classification tree models in all flavours
-def create_classification_trees(prior, partition_prior):
+def create_classification_trees(prior, partition_prior, prune=False):
     return [
-        PerpendicularClassificationTree(partition_prior, prior),
-        HyperplaneClassificationTree(partition_prior, prior),
-        HyperplaneClassificationTree(partition_prior, prior, optimizer=ScipyOptimizer(DifferentialEvolutionSolver, 666)),
-        HyperplaneClassificationTree(partition_prior, prior, optimizer=RandomTwoPointOptimizer(100, 666)),
-        HyperplaneClassificationTree(partition_prior, prior, optimizer=RandomHyperplaneOptimizer(100, 666)),
-        HyperplaneClassificationTree(partition_prior, prior, optimizer=SimulatedAnnealingOptimizer(10, 10, 0.9, 666)),
+        PerpendicularClassificationTree(partition_prior, prior, prune=prune),
+        HyperplaneClassificationTree(partition_prior, prior, delta=0, prune=prune),
+        HyperplaneClassificationTree(partition_prior, prior, delta=0, prune=prune, optimizer=ScipyOptimizer(DifferentialEvolutionSolver, 666)),
+        HyperplaneClassificationTree(partition_prior, prior, delta=0, prune=prune, optimizer=RandomTwoPointOptimizer(100, 666)),
+        HyperplaneClassificationTree(partition_prior, prior, delta=0, prune=prune, optimizer=RandomHyperplaneOptimizer(100, 666)),
+        HyperplaneClassificationTree(partition_prior, prior, delta=0, prune=prune, optimizer=SimulatedAnnealingOptimizer(10, 10, 0.9, 666)),
     ]
 
 

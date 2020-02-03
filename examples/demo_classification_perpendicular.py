@@ -74,15 +74,15 @@ if __name__ == '__main__':
     prior_pseudo_observations = 1
     prior = prior_pseudo_observations * np.ones(n_dim)
 
-    # Bayesian decision tree parameters
-    partition_prior = 0.9
-    delta = 0
-
     # model
-    model = PerpendicularClassificationTree(partition_prior, prior)
+    model = PerpendicularClassificationTree(
+        partition_prior=0.9,
+        prior=prior,
+        delta=0,
+        prune=True)
 
     # train
-    model.fit(X_train, y_train, delta)
+    model.fit(X_train, y_train)
     print(model)
     print()
     print('Tree depth and number of leaves: {}, {}'.format(model.get_depth(), model.get_n_leaves()))

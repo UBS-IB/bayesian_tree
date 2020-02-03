@@ -48,15 +48,15 @@ if __name__ == '__main__':
     beta = alpha/tau_prior
     prior = np.array([mu, kappa, alpha, beta])
 
-    # Bayesian decision tree parameters
-    partition_prior = 0.9
-    delta = 0
-
     # model
-    model = HyperplaneRegressionTree(partition_prior, prior, optimizer=SimulatedAnnealingOptimizer(10, 10, 0.9, 666))
+    model = HyperplaneRegressionTree(
+        partition_prior=0.9,
+        prior=prior,
+        delta=0,
+        optimizer=SimulatedAnnealingOptimizer(10, 10, 0.9, 666))
 
     # train
-    model.fit(X_train, y_train, delta)
+    model.fit(X_train, y_train)
     print(model)
     print()
     print('Tree depth and number of leaves: {}, {}'.format(model.get_depth(), model.get_n_leaves()))

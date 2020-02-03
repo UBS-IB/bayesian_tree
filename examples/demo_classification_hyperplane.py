@@ -1,9 +1,8 @@
 import numpy as np
-from scipy.optimize._differentialevolution import DifferentialEvolutionSolver
 from sklearn.metrics import accuracy_score
 
-from bayesian_decision_tree.classification import PerpendicularClassificationTree, HyperplaneClassificationTree
-from bayesian_decision_tree.hyperplane_optimization import SimulatedAnnealingOptimizer, ScipyOptimizer
+from bayesian_decision_tree.classification import HyperplaneClassificationTree
+from bayesian_decision_tree.hyperplane_optimization import SimulatedAnnealingOptimizer
 from examples import helper
 
 # demo script for classification (binary or multiclass) using arbitrarily oriented hyperplanes
@@ -76,14 +75,15 @@ if __name__ == '__main__':
     prior_pseudo_observations = 100
     prior = prior_pseudo_observations * np.ones(n_dim)
 
-    # Bayesian decision tree parameters
-    partition_prior = 0.9
-    delta = 0
-
     # model
-    model = HyperplaneClassificationTree(partition_prior, prior, optimizer=SimulatedAnnealingOptimizer(10, 10, 0.9, 666))
+    model = HyperplaneClassificationTree(
+        partition_prior=0.9,
+        prior=prior,
+        delta=0,
+        prune=True,
+        optimizer=SimulatedAnnealingOptimizer(10, 10, 0.9, 666))
 
-    model.fit(X_train, y_train, delta, prune=True)
+    model.fit(X_train, y_train)
     # train
     print(model)
     print()

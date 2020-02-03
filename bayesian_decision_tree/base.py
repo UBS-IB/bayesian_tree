@@ -15,23 +15,16 @@ class BaseTree(ABC, BaseEstimator):
     inherit from two superclasses which in turn inherit from this class.
     """
 
-    def __init__(self, partition_prior, prior, child_type, is_regression, level):
-        if not isinstance(prior, np.ndarray):
-            raise TypeError('\'prior\' must be a numpy array')
-
+    def __init__(self, partition_prior, prior, delta, prune, child_type, is_regression, level):
         self.partition_prior = partition_prior
         self.prior = prior
+        self.delta = delta
+        self.prune = prune
         self.child_type = child_type
         self.is_regression = is_regression
         self.level = level
 
-        # to be set later
-        self.n_dim = None
-        self.posterior = None
-        self.n_data = None
-        self._erase_split_info_base()
-
-    def fit(self, X, y, delta=0.0, prune=False, verbose=False, feature_names=None):
+    def fit(self, X, y, verbose=False, feature_names=None):
         """
         Trains this classification or regression tree using the training set (X, y).
 
@@ -45,18 +38,6 @@ class BaseTree(ABC, BaseEstimator):
             integers 0 and 1 are permitted. In case of multiclass classification
             only the integers 0, 1, ..., {n_classes-1} are permitted. In case of
             regression all finite float values are permitted.
-
-        delta : float, default=0.0
-            Determines the strengthening of the prior as the tree grows deeper,
-            see [1]. Must be a value between 0.0 and 1.0.
-
-        prune : boolean, default=False
-            Prunes the tree after fitting if `True` by removing all splits that don't add information,
-            i.e., where the predictions of both children are identical. It's usually sensible to set
-            this to `True` in the classification case if you're only interested in class predictions
-            (`predict(X)`), but it makes sense to set it to `False` if you're looking for class
-            probabilities (`predict_proba(X)`). It can safely be set to 'True' in the regression case
-            because it will only merge children if their predictions are identical.
 
         verbose : bool, default=False
             Prints fitting progress.
@@ -79,17 +60,14 @@ class BaseTree(ABC, BaseEstimator):
         y = self._ensure_float64(y)
         self._check_target(y)
 
-        if delta < 0.0 or delta > 1.0:
-            raise ValueError('Delta must be between 0.0 and 1.0 but was {}.'.format(delta))
-
         X, feature_names = self._normalize_data_and_feature_names(X, feature_names)
         if X.shape[0] != len(y):
             raise ValueError('Invalid shapes: X={}, y={}'.format(X.shape, y.shape))
 
         # fit
-        self._fit(X, y, delta, verbose, feature_names, 'root')
+        self._fit(X, y, verbose, feature_names, 'root')
 
-        if prune:
+        if self.prune:
             self._prune()
 
         return self
@@ -138,7 +116,7 @@ class BaseTree(ABC, BaseEstimator):
 
         self._ensure_is_fitted()
 
-        feature_importance = np.zeros(self.n_dim)
+        feature_importance = np.zeros(self.n_dim_)
         self._update_feature_importance(feature_importance)
         feature_importance /= feature_importance.sum()
 
@@ -163,13 +141,13 @@ class BaseTree(ABC, BaseEstimator):
 
             if len(indices1) > 0:
                 X1 = X[indices1]
-                predictions1 = self.child1._predict(X1, predict_class)
+                predictions1 = self.child1_._predict(X1, predict_class)
                 predictions_merged = self._create_merged_predictions_array(X, predict_class, predictions1)
                 predictions_merged[indices1] = predictions1
 
             if len(indices2) > 0:
                 X2 = X[indices2]
-                predictions2 = self.child2._predict(X2, predict_class)
+                predictions2 = self.child2_._predict(X2, predict_class)
                 if predictions_merged is None:
                     predictions_merged = self._create_merged_predictions_array(X, predict_class, predictions2)
 
@@ -184,14 +162,14 @@ class BaseTree(ABC, BaseEstimator):
         depth_start = self.get_depth()
         n_leaves_start = self.get_n_leaves()
 
-        if self.child1.is_leaf() and self.child2.is_leaf():
-            if self.child1._predict_leaf() == self.child2._predict_leaf():
+        if self.child1_.is_leaf() and self.child2_.is_leaf():
+            if self.child1_._predict_leaf() == self.child2_._predict_leaf():
                 # same prediction (class if classification, value if regression) -> no need to split
                 self._erase_split_info_base()
                 self._erase_split_info()
         else:
-            self.child1._prune()
-            self.child2._prune()
+            self.child1_._prune()
+            self.child2_._prune()
 
         if depth_start != self.get_depth() or n_leaves_start != self.get_n_leaves():
             # we did some pruning somewhere down this sub-tree -> prune again
@@ -250,11 +228,14 @@ class BaseTree(ABC, BaseEstimator):
         return X_float
 
     def _ensure_is_fitted(self, X=None):
-        if self.posterior is None:
+        if not self.is_fitted():
             raise ValueError('Cannot predict on an untrained model; call .fit() first')
 
-        if X is not None and X.shape[1] != self.n_dim:
-            raise ValueError('Bad input dimensions: Expected {}, got {}'.format(self.n_dim, X.shape[1]))
+        if X is not None and X.shape[1] != self.n_dim_:
+            raise ValueError('Bad input dimensions: Expected {}, got {}'.format(self.n_dim_, X.shape[1]))
+
+    def is_fitted(self):
+        return hasattr(self, 'posterior_')
 
     @staticmethod
     def _create_merged_predictions_array(X, predict_class, predictions_child):
@@ -289,9 +270,9 @@ class BaseTree(ABC, BaseEstimator):
         if self.is_leaf():
             return max(depth, self.level)
         else:
-            if self.child1 is not None:
-                depth = self.child1._update_depth(depth)
-                depth = self.child2._update_depth(depth)
+            if self.child1_ is not None:
+                depth = self.child1_._update_depth(depth)
+                depth = self.child2_._update_depth(depth)
 
             return depth
 
@@ -299,17 +280,21 @@ class BaseTree(ABC, BaseEstimator):
         if self.is_leaf():
             return n_leaves+1
         else:
-            if self.child1 is not None:
-                n_leaves = self.child1._update_n_leaves(n_leaves)
-                n_leaves = self.child2._update_n_leaves(n_leaves)
+            if self.child1_ is not None:
+                n_leaves = self.child1_._update_n_leaves(n_leaves)
+                n_leaves = self.child2_._update_n_leaves(n_leaves)
 
             return n_leaves
 
     def _erase_split_info_base(self):
-        self.child1 = None
-        self.child2 = None
-        self.log_p_data_no_split = None
-        self.best_log_p_data_split = None
+        self.child1_ = None
+        self.child2_ = None
+        self.log_p_data_no_split_ = None
+        self.best_log_p_data_split_ = None
+
+    @abstractmethod
+    def _get_prior(self, n_data, n_dim):
+        pass
 
     @abstractmethod
     def _erase_split_info(self):
@@ -324,15 +309,15 @@ class BaseTree(ABC, BaseEstimator):
         pass
 
     @abstractmethod
-    def _compute_log_p_data_no_split(self, y):
+    def _compute_log_p_data_no_split(self, y, prior):
         pass
 
     @abstractmethod
-    def _compute_log_p_data_split(self, y, split_indices, n_dim):
+    def _compute_log_p_data_split(self, y, prior, split_indices):
         pass
 
     @abstractmethod
-    def _compute_posterior(self, y, delta=1):
+    def _compute_posterior(self, y, prior, delta=1):
         pass
 
     @abstractmethod
@@ -344,7 +329,7 @@ class BaseTree(ABC, BaseEstimator):
         pass
 
     @abstractmethod
-    def _fit(self, X, y, delta, verbose, feature_names, side_name):
+    def _fit(self, X, y, verbose, feature_names, side_name):
         pass
 
     def __repr__(self):
