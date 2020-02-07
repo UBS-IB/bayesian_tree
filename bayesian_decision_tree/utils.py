@@ -7,4 +7,4 @@ def multivariate_betaln(alphas):
         return betaln(alphas[0], alphas[1])
     else:
         # see https://en.wikipedia.org/wiki/Beta_function#Multivariate_beta_function
-        return np.sum([gammaln(alpha) for alpha in alphas], axis=0) - gammaln(alphas.sum())
+        return np.sum([gammaln(alpha) for alpha in alphas], axis=0) - gammaln(np.sum(alphas))
