@@ -150,7 +150,8 @@ class BaseHyperplaneTree(BaseTree, ABC):
 
             # the more the normal vector is oriented along a given dimension's axis the more
             # important that dimension is, so weight log_p_gain with hyperplane_normal[i_dim]
-            feature_importance += log_p_gain * hyperplane_normal
+            # (its absolute value in fact because the sign of the direction is irrelevant)
+            feature_importance += log_p_gain * np.abs(hyperplane_normal)
             if self.child1_ is not None:
                 self.child1_._update_feature_importance(feature_importance)
                 self.child2_._update_feature_importance(feature_importance)

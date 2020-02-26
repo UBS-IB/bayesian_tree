@@ -361,3 +361,49 @@ class ClassificationTreeTest(TestCase):
             c2 = model_no_prune.child2_.child2_
             c12 = model_prune.child2_
             assert_array_equal(c12.posterior_, c1.posterior_ + c2.posterior_ - c12.prior)
+
+    def test_feature_importance_consistency_when_mirroring_along_axes(self):
+        np.random.seed(42)
+
+        n = 200
+        X0 = np.zeros((n, 2))
+        sd = 3
+        X0[0*n//4:1*n//4] = np.random.normal([2, 2], sd, (n//4, 2))
+        X0[1*n//4:2*n//4] = np.random.normal([-2, 1], sd, (n//4, 2))
+        X0[2*n//4:3*n//4] = np.random.normal([-2, -1], sd, (n//4, 2))
+        X0[3*n//4:4*n//4] = np.random.normal([-2, -2], sd, (n//4, 2))
+
+        y = np.zeros(n)
+        y[0*n//4:1*n//4] = 1
+        y[2*n//4:3*n//4] = 1
+
+        for m1, m2, m3, m4 in zip(
+            create_classification_trees(np.array([1, 1]), 0.99, prune=True),
+            create_classification_trees(np.array([1, 1]), 0.99, prune=True),
+            create_classification_trees(np.array([1, 1]), 0.99, prune=True),
+            create_classification_trees(np.array([1, 1]), 0.99, prune=True)):
+
+            X1 = np.vstack((+X0[:, 0], +X0[:, 1])).T
+            X2 = np.vstack((+X0[:, 0], -X0[:, 1])).T
+            X3 = np.vstack((-X0[:, 0], +X0[:, 1])).T
+            X4 = np.vstack((-X0[:, 0], -X0[:, 1])).T
+
+            print('Testing {}'.format(type(m1).__name__))
+
+            m1.fit(X1, y)
+            m2.fit(X2, y)
+            m3.fit(X3, y)
+            m4.fit(X4, y)
+
+            fi1 = m1.feature_importance()
+            fi2 = m2.feature_importance()
+            fi3 = m3.feature_importance()
+            fi4 = m4.feature_importance()
+
+            self.assertTrue(np.all(fi1 != 0))
+            assert_array_almost_equal(fi1, fi2, decimal=1)
+            assert_array_almost_equal(fi1, fi3, decimal=1)
+            assert_array_almost_equal(fi1, fi4, decimal=1)
+            assert_array_almost_equal(fi2, fi3, decimal=1)
+            assert_array_almost_equal(fi2, fi4, decimal=1)
+            assert_array_almost_equal(fi3, fi4, decimal=1)
