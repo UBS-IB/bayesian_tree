@@ -56,6 +56,8 @@ class BaseHyperplaneTree(BaseTree, ABC):
         self.optimization_function = optimization_function
 
         # retrieve best hyperplane split from optimization function
+        self._erase_split_info_base()
+        self._erase_split_info()
         if optimization_function.best_hyperplane_normal is not None:
             # split data and target to recursively train children
             projections = X @ optimization_function.best_hyperplane_normal \
@@ -112,9 +114,6 @@ class BaseHyperplaneTree(BaseTree, ABC):
                 else:
                     self.child2_.posterior_ = self._compute_posterior(y2, prior)
                     self.child2_.n_data_ = n_data2
-        else:
-            self._erase_split_info_base()
-            self._erase_split_info()
 
         # compute posterior
         self.n_dim_ = X.shape[1]
