@@ -3,14 +3,14 @@ A collection of publicly available data sets to test classification models on,
  plus some helper functions for plotting.
 """
 import argparse
-
 import io
+from dataclasses import dataclass
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import requests
 from matplotlib import patches
-from matplotlib.pyplot import cm
 from sklearn.preprocessing import LabelBinarizer
 
 
@@ -151,6 +151,17 @@ def load_ripley(proxies):
     return train, test
 
 
+def load_seeds(proxies):
+    # load wheat seeds dataset
+    def parse_ripley(text):
+        lines = text.split('\n')
+        return np.vstack([np.fromstring(lines[i], sep=' ') for i in range(len(lines)-1)])
+    train = parse_ripley(requests.get('https://archive.ics.uci.edu/ml/machine-learning-databases/00236/seeds_dataset.txt', proxies=proxies).text)
+    train[:, -1] -= 1
+    test = train
+    return train, test
+
+
 def load_seismic(proxies):
     # load seismic bumps dataset
     text = requests.get('https://archive.ics.uci.edu/ml/machine-learning-databases/00266/seismic-bumps.arff', proxies=proxies).text
@@ -190,17 +201,18 @@ def plot_2d_perpendicular(root, X_train, y_train, info_train, X_test, y_test, in
     plt.figure(figsize=[10, 16], dpi=75)
 
     n_classes = int(y_train.max()) + 1
-    colormap = cm.gist_rainbow
+    colormap = plt.get_cmap('gist_rainbow')
 
     def plot(X, y, info):
-        for i in range(n_classes):
+        for i in range(n_classes)[::-1]:
             class_i = y == i
             plt.plot(X[np.where(class_i)[0], 0],
                      X[np.where(class_i)[0], 1],
                      'o',
                      ms=4,
                      c=colormap(i/n_classes),
-                     label='Class {}'.format(i))
+                     label='Class {}'.format(i),
+                     alpha=0.5)
 
             bounds = ((X[:, 0].min(), X[:, 0].max()), (X[:, 1].min(), X[:, 1].max()))
             draw_node_2d_perpendicular(root, bounds, colormap, n_classes)
@@ -260,71 +272,153 @@ def draw_node_1d_perpendicular(node, bounds):
         # color = color0 if mean < 0.5 else color1
         plt.plot([x0, x1], [mean, mean], 'r')
     else:
-        draw_node_1d_perpendicular(node.child1_, compute_child_bounds_1d_perpendicular(bounds, node, True))
-        draw_node_1d_perpendicular(node.child2_, compute_child_bounds_1d_perpendicular(bounds, node, False))
+        draw_node_1d_perpendicular(node.child1, compute_child_bounds_1d_perpendicular(bounds, node, True))
+        draw_node_1d_perpendicular(node.child2, compute_child_bounds_1d_perpendicular(bounds, node, False))
 
 
 class Line:
-    def __init__(self, origin, normal):
-        self.origin = origin
-        self.normal = normal
+    def __init__(self, p0, p1):
+        if p0[0] > p1[0]:
+            p1, p0 = p0, p1
+
+        self.p0 = np.asarray(p0)
+        self.p1 = np.asarray(p1)
 
     def intersect(self, other):
-        n1x = self.normal[0]
-        n1y = self.normal[1]
-        n2x = other.normal[0]
-        n2y = other.normal[1]
+        da = self.p1-self.p0
+        ma = da[1]/da[0]
 
-        x1 = self.origin[0]
-        y1 = self.origin[1]
-        x2 = other.origin[0]
-        y2 = other.origin[1]
+        db = other.p1-other.p0
+        mb = db[1]/db[0]
 
-        den_x = (n2x * n1y - n1x * n2y)
-        den_y = (n2y * n1x - n1y * n2x)
+        x0a = self.p0[0]
+        x1a = self.p1[0]
+        x0b = other.p0[0]
+        x1b = other.p1[0]
+        y0a = self.p0[1]
+        y0b = other.p0[1]
 
-        if den_x != 0 and den_y != 0:
-            x = (n1y*n2y*(y2-y1) + n2x*n1y*x2 - n1x*n2y*x1) / den_x
-            y = (n1x*n2x*(x2-x1) + n2y*n1x*y2 - n1y*n2x*y1) / den_y
+        x = (y0a-y0b + mb*x0b-ma*x0a) / (mb-ma)
+        y = y0a + ma*(x-x0a)
+
+        if x0a <= x <= x1a and x0b <= x <= x1b:
+            return np.array([x, y])
         else:
-            x = np.nan
-            y = np.nan
+            return None
 
-        return x, y
+    def plot(self, *args, **kwargs):
+        plt.plot([self.p0[0], self.p1[0]], [self.p0[1], self.p1[1]], *args, **kwargs)
 
-    def compute_y(self, x):
-        x0 = self.origin[0]
-        y0 = self.origin[1]
-        nx = self.normal[0]
-        ny = self.normal[1]
+    def __str__(self):
+        return f'{self.p0} -> {self.p1}'
 
-        return y0 - nx/ny*(x-x0)
 
-    def compute_x(self, y):
-        x0 = self.origin[0]
-        y0 = self.origin[1]
-        nx = self.normal[0]
-        ny = self.normal[1]
+@dataclass
+class Parent:
+    line: Line
+    origin: np.ndarray
+    normal: np.ndarray
+    side: str
 
-        return x0 - ny/nx*(y-y0)
+
+# plots the root node split and all child nodes recursively
+def plot_root(root, X, y, title, cmap):
+    plt.title(title)
+
+    plt.plot(X[y == 0, 0], X[y == 0, 1], 'b.', ms=3)
+    plt.plot(X[y == 1, 0], X[y == 1, 1], 'r.', ms=3)
+
+    x_min = X[:, 0].min()
+    x_max = X[:, 0].max()
+    y_min = X[:, 1].min()
+    y_max = X[:, 1].max()
+
+    top = Line([x_min, y_max], [x_max, y_max])
+    bottom = Line([x_min, y_min], [x_max, y_min])
+
+    def plot_node(node, node_vs_color={}, level=0, parents=[], side=None):
+        if node.best_hyperplane_origin_ is None:
+            return
+
+        # pick an arbitrary origin and get the normal
+        origin = node.best_hyperplane_origin_
+        normal = node.best_hyperplane_normal_
+
+        # construct line segment
+        m = -normal[0]/normal[1]
+        y0 = origin[1] + m*(x_min-origin[0])
+        y1 = origin[1] + m*(x_max-origin[0])
+
+        # raw line without intersections
+        line = Line([x_min, y0], [x_max, y1])
+
+        # intersect with parents
+        for parent in parents:
+            p = line.intersect(parent.line)
+            if p is not None:
+                # determine side of line to keep
+                activation0 = np.dot(line.p0 - parent.origin, parent.normal)
+
+                if (parent.side == 'L' and activation0 > 0) or (parent.side == 'R' and activation0 < 0):
+                    line = Line(line.p0, p)
+                else:
+                    line = Line(p, line.p1)
+
+        # intersect with top/bottom
+        p = line.intersect(top)
+        if p is not None:
+            if y0 > y_max:
+                line = Line(p, line.p1)
+            else:
+                line = Line(line.p0, p)
+
+        p = line.intersect(bottom)
+        if p is not None:
+            if y0 < y_min:
+                line = Line(p, line.p1)
+            else:
+                line = Line(line.p0, p)
+
+        # generate line name
+        if side is not None:
+            side_name = ' - '.join(f'{parents[i].side}{level-len(parents)+i+1}' for i in range(len(parents)))
+        else:
+            side_name = ''
+
+        side_name = 'Root' if len(side_name) == 0 else 'Root - ' + side_name
+
+        # make sure node colors don't change
+        if id(node) not in node_vs_color:
+            color = cmap(len(node_vs_color))
+            node_vs_color[id(node)] = color
+        else:
+            color = node_vs_color[id(node)]
+
+        # compute line width as a function of the stiffness
+        stiffness = np.linalg.norm(normal)
+        lw = 2  # 100/stiffness
+
+        line.plot(color=color, label=side_name, lw=lw, alpha=0.7)
+
+        if node.child1_:
+            plot_node(node.child1_, node_vs_color, level+1, parents=parents + [Parent(line, origin, normal, 'L')], side='L')
+
+        if node.child2_:
+            plot_node(node.child2_, node_vs_color, level+1, parents=parents + [Parent(line, origin, normal, 'R')], side='R')
+
+    plot_node(root)
 
 
 def plot_2d_hyperplane(root, X_train, y_train, info_train, X_test, y_test, info_test):
     plt.figure(figsize=[10, 16], dpi=75)
 
     n_classes = int(y_train.max()) + 1
-    colormap = cm.gist_rainbow
+    colormap = plt.get_cmap('gist_rainbow')
 
     x_min = min(X_train[:, 0].min(), X_test[:, 0].min())
     x_max = max(X_train[:, 0].max(), X_test[:, 0].max())
     y_min = min(X_train[:, 1].min(), X_test[:, 1].min())
     y_max = max(X_train[:, 1].max(), X_test[:, 1].max())
-
-    bounds = []
-    bounds.append(Line((x_min, y_min), (1, 0)))
-    bounds.append(Line((x_min, y_min), (0, 1)))
-    bounds.append(Line((x_max, y_max), (1, 0)))
-    bounds.append(Line((x_max, y_max), (0, 1)))
 
     def plot(X, y, info):
         for i in range(n_classes):
@@ -336,7 +430,7 @@ def plot_2d_hyperplane(root, X_train, y_train, info_train, X_test, y_test, info_
                      c=colormap(i/n_classes),
                      label='Class {}'.format(i))
 
-        draw_node_2d_hyperplane(root, bounds, colormap, n_classes)
+        plot_root(root, X, y, info, plt.get_cmap('tab20'))
 
         plt.title(info)
         plt.xlabel('x0')
@@ -356,48 +450,3 @@ def plot_2d_hyperplane(root, X_train, y_train, info_train, X_test, y_test, info_
     plt.gca().set_aspect(1)
 
     plt.show()
-
-
-def draw_node_2d_hyperplane(node, bounds, colormap, n_classes):
-    if node.is_leaf():
-        pass
-        # x = bounds[0][0]
-        # y = bounds[1][0]
-        # w = bounds[0][1] - x
-        # h = bounds[1][1] - y
-
-        # mean = node.compute_posterior_mean()
-        # mean = (np.arange(len(mean)) * mean).sum()
-
-        # plt.gca().add_patch(patches.Rectangle((x, y), w, h, color=colormap(mean/n_classes), alpha=0.1, linewidth=0))
-    else:
-        line = Line(node.best_hyperplane_origin_, node.best_hyperplane_normal_)
-
-        x_min = -np.inf
-        x_max = np.inf
-        y_min = -np.inf
-        y_max = np.inf
-
-        for bound in bounds:
-            x, y = line.intersect(bound)
-
-            if x < line.origin[0]:
-                x_min = max(x_min, x)
-            else:
-                x_max = min(x_max, x)
-
-            if y < line.origin[1]:
-                y_min = max(y_min, y)
-            else:
-                y_max = min(y_max, y)
-
-        xs = np.array([x_min, x_max])
-        ln = plt.plot(xs, line.compute_y(xs), label='Split at level {}'.format(node.level))
-        # plt.plot(line.origin[0], line.origin[1], 'o', c=ln[0].get_color())
-        # if node.level >= 2:
-        #     return
-
-        bounds_for_children = bounds.copy()
-        bounds_for_children.append(line)
-        draw_node_2d_hyperplane(node.child1_, bounds_for_children, colormap, n_classes)
-        draw_node_2d_hyperplane(node.child2_, bounds_for_children, colormap, n_classes)
