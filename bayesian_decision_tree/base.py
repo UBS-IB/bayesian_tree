@@ -177,7 +177,7 @@ class BaseTree(ABC, BaseEstimator):
 
     @abstractmethod
     def _update_feature_importance(self, feature_importance):
-        pass
+        raise NotImplementedError
 
     @staticmethod
     def _normalize_data_and_feature_names(X, feature_names=None):
@@ -294,47 +294,47 @@ class BaseTree(ABC, BaseEstimator):
 
     @abstractmethod
     def _get_prior(self, n_data, n_dim):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _erase_split_info(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def is_leaf(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _check_target(self, y):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _compute_log_p_data_no_split(self, y, prior):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
-    def _compute_log_p_data_split(self, y, prior, split_indices):
-        pass
+    def _compute_log_p_data_split(self, y, prior, n_dim, split_indices):
+        raise NotImplementedError
 
     @abstractmethod
     def _compute_posterior(self, y, prior, delta=1):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _compute_posterior_mean(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _predict_leaf(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _fit(self, X, y, verbose, feature_names, side_name):
-        pass
+        raise NotImplementedError
 
     def __repr__(self):
         return self.__str__()
 
     @abstractmethod
     def _compute_child1_and_child2_indices(self, X, dense):
-        pass
+        raise NotImplementedError
