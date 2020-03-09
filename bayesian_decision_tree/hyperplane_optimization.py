@@ -4,6 +4,8 @@ import numpy as np
 from numpy.random import RandomState
 from scipy.sparse import csr_matrix, csc_matrix
 
+from bayesian_decision_tree.utils import r2_series_generator, hypercube_to_hypersphere_surface
+
 
 class HyperplaneOptimizationFunction:
     """
@@ -32,42 +34,7 @@ class HyperplaneOptimizationFunction:
         self.function_evaluations += 1
 
         if self.search_space_is_unit_hypercube:
-            # see https://core.ac.uk/download/pdf/82404670.pdf, "Algorithm YPHL"
-            unif = hyperplane_normal.copy()  # unit hypercube vector
-            n_dim = len(unif)+1
-
-            x = np.zeros(n_dim)
-
-            half_hypersphere = True
-
-            if n_dim % 2 == 0:
-                # even
-                phi = np.pi*(unif[0]-0.5) if half_hypersphere else 2*np.pi*unif[0]
-                x[0:2] = np.cos(phi), np.sin(phi)
-
-                for i in range(1, n_dim//2):
-                    u = unif[2*i-1]
-                    h = u ** (1/(2*i))
-                    x[:2*i] *= h
-
-                    sqrt_rho = np.sqrt(max(0, 1-np.sum(x[:2*i]**2)))
-                    phi = 2*np.pi*unif[2*i]
-                    x[2*i:2*i+2] = np.array([sqrt_rho*np.cos(phi), sqrt_rho*np.sin(phi)])
-
-            else:
-                # odd
-                x[0] = 1 if half_hypersphere else 2*(unif[0] >= 0.5) - 1
-
-                for i in range(1, (n_dim+1)//2):
-                    u = unif[2*i-2]
-                    h = u ** (1/(2*i-1))
-                    x[:2*i-1] *= h
-
-                    sqrt_rho = np.sqrt(max(0, 1-np.sum(x[:2*i-1]**2)))
-                    phi = 2*np.pi*unif[2*i-1]
-                    x[2*i-1:2*i+1] = sqrt_rho*np.cos(phi), sqrt_rho*np.sin(phi)
-
-            hyperplane_normal = x
+            hyperplane_normal = hypercube_to_hypersphere_surface(hyperplane_normal, half_hypersphere=True)
 
         # catch some special cases and normalize to unit length
         hyperplane_normal = np.nan_to_num(hyperplane_normal)
@@ -91,7 +58,6 @@ class HyperplaneOptimizationFunction:
         y_sorted = self.y[sort_indices]
 
         # compute data likelihoods of all possible splits along this projection and find split with highest data likelihood
-        n_dim = self.X.shape[1]
         log_p_data_split = self.compute_log_p_data_split(y_sorted, self.prior, split_indices)
         i_max = log_p_data_split.argmax()
         if log_p_data_split[i_max] >= self.best_log_p_data_split:
@@ -141,7 +107,7 @@ class HyperplaneOptimizer(ABC, StrMixin):
 
     @abstractmethod
     def solve(self, optimization_function):
-        pass
+        raise NotImplementedError
 
 
 class ScipyOptimizer(HyperplaneOptimizer):
@@ -260,6 +226,30 @@ class RandomHyperplaneOptimizer(HyperplaneOptimizer):
             optimization_function.compute(hyperplane_normal)
 
 
+class QuasiRandomHyperplaneOptimizer(HyperplaneOptimizer):
+    """
+    An optimizer generating hyperplanes with quasi-random orientation
+    in space, see
+    http://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
+    """
+
+    def __init__(self, n):
+        super().__init__(search_space_is_unit_hypercube=True)
+
+        self.n = n
+
+    def solve(self, optimization_function):
+        X = optimization_function.X
+        n_dim = X.shape[1]
+        n_dim_surface = n_dim-1
+
+        # quasi-random R2 sequence
+        r2gen = r2_series_generator(n_dim_surface)
+        for i in range(self.n):
+            uniform = next(r2gen)
+            optimization_function.compute(uniform)
+
+
 class SimulatedAnnealingOptimizer(HyperplaneOptimizer):
     """
     A simple simulated annealing optimizer (experimental).
@@ -309,6 +299,7 @@ class SimulatedAnnealingOptimizer(HyperplaneOptimizer):
                     new_candidate = np.clip(new_candidate, 0, 1)
                     value = optimization_function.compute(new_candidate)
                     candidates[value] = new_candidate
+
                 f *= self.spread_factor
 
             # only keep the best candidates
