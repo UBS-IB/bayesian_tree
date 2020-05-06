@@ -175,8 +175,7 @@ class PerpendicularClassificationTree(BasePerpendicularTree, BaseClassificationT
 
     def __init__(self, partition_prior=0.99, prior=None, delta=0, prune=False, level=0, split_precision=0.0):
         child_type = PerpendicularClassificationTree
-        BasePerpendicularTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, level,
-                                       split_precision)
+        BasePerpendicularTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, level, split_precision)
         BaseClassificationTree.__init__(self, partition_prior, prior, delta, prune, child_type, level)
 
 
@@ -254,9 +253,7 @@ class HyperplaneClassificationTree(BaseHyperplaneTree, BaseClassificationTree):
     See `demo_classification_perpendicular.py`.
     """
 
-    def __init__(self, partition_prior=0.99, prior=None, delta=None, prune=False, optimizer=None, level=0,
-                 split_precision=0.0):
+    def __init__(self, partition_prior=0.99, prior=None, delta=None, prune=False, optimizer=None, level=0, split_precision=0.0):
         child_type = HyperplaneClassificationTree
-        BaseHyperplaneTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, optimizer, level,
-                                    split_precision)
+        BaseHyperplaneTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, optimizer, level, split_precision)
         BaseClassificationTree.__init__(self, partition_prior, prior, delta, prune, child_type, level)

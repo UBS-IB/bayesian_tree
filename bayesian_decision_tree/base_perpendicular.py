@@ -114,8 +114,7 @@ class BasePerpendicularTree(BaseTree, ABC):
             if not dense:
                 X_dim_sorted = self._to_array(X_dim_sorted)
 
-            split_indices = 1 + np.where(abs(np.diff(X_dim_sorted)) > self.split_precision)[
-                0]  # we can only split between *different* data points
+            split_indices = 1 + np.where(abs(np.diff(X_dim_sorted)) > self.split_precision)[0]  # we can only split between *different* data points
             if len(split_indices) == 0:
                 # no split possible along this dimension
                 continue

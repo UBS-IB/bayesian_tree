@@ -14,8 +14,7 @@ class BaseHyperplaneTree(BaseTree, ABC):
     the low-level work to subclasses.
     """
 
-    def __init__(self, partition_prior, prior, delta, prune, child_type, is_regression, optimizer, level,
-                 split_precision):
+    def __init__(self, partition_prior, prior, delta, prune, child_type, is_regression, optimizer, level, split_precision):
         BaseTree.__init__(self, partition_prior, prior, delta, prune, child_type, is_regression, level, split_precision)
 
         self.optimizer = optimizer
