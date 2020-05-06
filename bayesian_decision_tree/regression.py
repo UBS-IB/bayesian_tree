@@ -155,6 +155,10 @@ class PerpendicularRegressionTree(BasePerpendicularTree, BaseRegressionTree):
 
     level : DO NOT SET, ONLY USED BY SUBCLASSES
 
+    split_precision : float, default=0.0
+        Determines the minimum distance between two contiguous points to consider a split. If the distance is below
+        this threshold, the points are considered to overlap along this direction.
+
     See also
     --------
     demo_regression_perpendicular.py
@@ -192,9 +196,10 @@ class PerpendicularRegressionTree(BasePerpendicularTree, BaseRegressionTree):
     See `demo_regression_perpendicular.py`.
     """
 
-    def __init__(self, partition_prior=0.99, prior=None, delta=0, prune=False, level=0):
+    def __init__(self, partition_prior=0.99, prior=None, delta=0, prune=False, level=0, split_precision=0.0):
         child_type = PerpendicularRegressionTree
-        BasePerpendicularTree.__init__(self, partition_prior, prior, delta, prune, child_type, True, level)
+        BasePerpendicularTree.__init__(self, partition_prior, prior, delta, prune, child_type, True, level,
+                                       split_precision)
         BaseRegressionTree.__init__(self, partition_prior, prior, delta, prune, child_type, level)
 
 
@@ -242,6 +247,10 @@ class HyperplaneRegressionTree(BaseHyperplaneTree, BaseRegressionTree):
 
     level : DO NOT SET, ONLY USED BY SUBCLASSES
 
+    split_precision : float, default=0.0
+        Determines the minimum distance between two contiguous points to consider a split. If the distance is below
+        this threshold, the points are considered to overlap along this direction.
+
     See also
     --------
     demo_regression_hyperplane.py
@@ -265,7 +274,9 @@ class HyperplaneRegressionTree(BaseHyperplaneTree, BaseRegressionTree):
     See `demo_regression_hyperplane.py`.
     """
 
-    def __init__(self, partition_prior=0.99, prior=None, delta=0, prune=False, optimizer=None, level=0):
+    def __init__(self, partition_prior=0.99, prior=None, delta=0, prune=False, optimizer=None, level=0,
+                 split_precision=0.0):
         child_type = HyperplaneRegressionTree
-        BaseHyperplaneTree.__init__(self, partition_prior, prior, delta, prune, child_type, True, optimizer, level)
+        BaseHyperplaneTree.__init__(self, partition_prior, prior, delta, prune, child_type, True, optimizer, level,
+                                    split_precision)
         BaseRegressionTree.__init__(self, partition_prior, prior, delta, prune, child_type, level)

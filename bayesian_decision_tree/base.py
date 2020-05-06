@@ -1,7 +1,6 @@
-from abc import ABC, abstractmethod
-
 import numpy as np
 import pandas as pd
+from abc import ABC, abstractmethod
 from scipy.sparse import csr_matrix, csc_matrix
 from sklearn.base import BaseEstimator
 
@@ -15,7 +14,7 @@ class BaseTree(ABC, BaseEstimator):
     inherit from two superclasses which in turn inherit from this class.
     """
 
-    def __init__(self, partition_prior, prior, delta, prune, child_type, is_regression, level):
+    def __init__(self, partition_prior, prior, delta, prune, child_type, is_regression, level, split_precision):
         self.partition_prior = partition_prior
         self.prior = prior
         self.delta = delta
@@ -23,6 +22,7 @@ class BaseTree(ABC, BaseEstimator):
         self.child_type = child_type
         self.is_regression = is_regression
         self.level = level
+        self.split_precision = split_precision
 
     def fit(self, X, y, verbose=False, feature_names=None):
         """

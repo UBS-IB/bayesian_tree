@@ -1,6 +1,5 @@
-from abc import ABC, abstractmethod
-
 import numpy as np
+from abc import ABC, abstractmethod
 from numpy.random import RandomState
 from scipy.sparse import csr_matrix, csc_matrix
 
@@ -15,13 +14,15 @@ class HyperplaneOptimizationFunction:
     data likelihood is maximized.
     """
 
-    def __init__(self, X, y, prior, compute_log_p_data_split, log_p_data_no_split, search_space_is_unit_hypercube):
+    def __init__(self, X, y, prior, compute_log_p_data_split, log_p_data_no_split, search_space_is_unit_hypercube,
+                 split_precision):
         self.X = X
         self.y = y
         self.prior = prior
         self.compute_log_p_data_split = compute_log_p_data_split
         self.log_p_data_no_split = log_p_data_no_split
         self.search_space_is_unit_hypercube = search_space_is_unit_hypercube
+        self.split_precision = split_precision
 
         # results of the optimization - to be set later during the actual optimization
         self.function_evaluations = 0
@@ -50,7 +51,8 @@ class HyperplaneOptimizationFunction:
         # compute distance of all points to the hyperplane: https://mathinsight.org/distance_point_plane
         projections = self.X @ hyperplane_normal  # up to an additive constant which doesn't matter to distance ordering
         sort_indices = np.argsort(projections)
-        split_indices = 1 + np.where(np.diff(projections) != 0)[0]  # we can only split between *different* data points
+        split_indices = 1 + np.where(abs(np.diff(projections)) > self.split_precision)[
+            0]  # we can only split between *different* data points
         if len(split_indices) == 0:
             # no split possible along this dimension
             return -self.log_p_data_no_split

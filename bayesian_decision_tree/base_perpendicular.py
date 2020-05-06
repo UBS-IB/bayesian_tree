@@ -1,6 +1,5 @@
-from abc import ABC
-
 import numpy as np
+from abc import ABC
 from scipy.sparse import csr_matrix, csc_matrix
 
 from bayesian_decision_tree.base import BaseTree
@@ -13,8 +12,8 @@ class BasePerpendicularTree(BaseTree, ABC):
     the low-level work to subclasses.
     """
 
-    def __init__(self, partition_prior, prior, delta, prune, child_type, is_regression, level):
-        BaseTree.__init__(self, partition_prior, prior, delta, prune, child_type, is_regression, level)
+    def __init__(self, partition_prior, prior, delta, prune, child_type, is_regression, level, split_precision):
+        BaseTree.__init__(self, partition_prior, prior, delta, prune, child_type, is_regression, level, split_precision)
 
     def prediction_paths(self, X):
         """Returns the prediction paths for X.
@@ -115,7 +114,8 @@ class BasePerpendicularTree(BaseTree, ABC):
             if not dense:
                 X_dim_sorted = self._to_array(X_dim_sorted)
 
-            split_indices = 1 + np.where(np.diff(X_dim_sorted) != 0)[0]  # we can only split between *different* data points
+            split_indices = 1 + np.where(abs(np.diff(X_dim_sorted)) > self.split_precision)[
+                0]  # we can only split between *different* data points
             if len(split_indices) == 0:
                 # no split possible along this dimension
                 continue
