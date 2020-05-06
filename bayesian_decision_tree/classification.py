@@ -3,9 +3,8 @@ This module declares the Bayesian classification tree models:
 * PerpendicularClassificationTree
 * HyperplaneClassificationTree
 """
-from abc import ABC
-
 import numpy as np
+from abc import ABC
 from sklearn.base import ClassifierMixin
 
 from bayesian_decision_tree.base import BaseTree
@@ -152,6 +151,10 @@ class PerpendicularClassificationTree(BasePerpendicularTree, BaseClassificationT
 
     level : DO NOT SET, ONLY USED BY SUBCLASSES
 
+    split_precision : float, default=0.0
+        Determines the minimum distance between two contiguous points to consider a split. If the distance is below
+        this threshold, the points are considered to overlap along this direction.
+
     See also
     --------
     demo_classification_perpendicular.py
@@ -170,9 +173,10 @@ class PerpendicularClassificationTree(BasePerpendicularTree, BaseClassificationT
     See `demo_classification_perpendicular.py`.
     """
 
-    def __init__(self, partition_prior=0.99, prior=None, delta=0, prune=False, level=0):
+    def __init__(self, partition_prior=0.99, prior=None, delta=0, prune=False, level=0, split_precision=0.0):
         child_type = PerpendicularClassificationTree
-        BasePerpendicularTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, level)
+        BasePerpendicularTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, level,
+                                       split_precision)
         BaseClassificationTree.__init__(self, partition_prior, prior, delta, prune, child_type, level)
 
 
@@ -228,6 +232,10 @@ class HyperplaneClassificationTree(BaseHyperplaneTree, BaseClassificationTree):
 
     level : DO NOT SET, ONLY USED BY SUBCLASSES
 
+    split_precision : float, default=0.0
+        Determines the minimum distance between two contiguous points to consider a split. If the distance is below
+        this threshold, the points are considered to overlap along this direction.
+
     See also
     --------
     demo_classification_hyperplane.py
@@ -246,7 +254,9 @@ class HyperplaneClassificationTree(BaseHyperplaneTree, BaseClassificationTree):
     See `demo_classification_perpendicular.py`.
     """
 
-    def __init__(self, partition_prior=0.99, prior=None, delta=None, prune=False, optimizer=None, level=0):
+    def __init__(self, partition_prior=0.99, prior=None, delta=None, prune=False, optimizer=None, level=0,
+                 split_precision=0.0):
         child_type = HyperplaneClassificationTree
-        BaseHyperplaneTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, optimizer, level)
+        BaseHyperplaneTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, optimizer, level,
+                                    split_precision)
         BaseClassificationTree.__init__(self, partition_prior, prior, delta, prune, child_type, level)

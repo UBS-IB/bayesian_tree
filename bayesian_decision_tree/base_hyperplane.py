@@ -1,6 +1,5 @@
-from abc import ABC
-
 import numpy as np
+from abc import ABC
 from scipy.optimize._differentialevolution import DifferentialEvolutionSolver
 from scipy.sparse import csc_matrix, csr_matrix
 
@@ -15,8 +14,9 @@ class BaseHyperplaneTree(BaseTree, ABC):
     the low-level work to subclasses.
     """
 
-    def __init__(self, partition_prior, prior, delta, prune, child_type, is_regression, optimizer, level):
-        BaseTree.__init__(self, partition_prior, prior, delta, prune, child_type, is_regression, level)
+    def __init__(self, partition_prior, prior, delta, prune, child_type, is_regression, optimizer, level,
+                 split_precision):
+        BaseTree.__init__(self, partition_prior, prior, delta, prune, child_type, is_regression, level, split_precision)
 
         self.optimizer = optimizer
 
@@ -48,7 +48,8 @@ class BaseHyperplaneTree(BaseTree, ABC):
             prior,
             self._compute_log_p_data_split,
             log_p_data_no_split,
-            optimizer.search_space_is_unit_hypercube)
+            optimizer.search_space_is_unit_hypercube,
+            self.split_precision)
 
         # create and run optimizer
         optimizer.solve(optimization_function)
