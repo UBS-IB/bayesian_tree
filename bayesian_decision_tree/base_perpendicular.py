@@ -12,8 +12,8 @@ class BasePerpendicularTree(BaseTree, ABC):
     the low-level work to subclasses.
     """
 
-    def __init__(self, partition_prior, prior, delta, prune, child_type, is_regression, level, split_precision):
-        BaseTree.__init__(self, partition_prior, prior, delta, prune, child_type, is_regression, level, split_precision)
+    def __init__(self, partition_prior, prior, delta, prune, child_type, is_regression, split_precision, level):
+        BaseTree.__init__(self, partition_prior, prior, delta, prune, child_type, is_regression, split_precision, level)
 
     def prediction_paths(self, X):
         """Returns the prediction paths for X.
@@ -114,7 +114,7 @@ class BasePerpendicularTree(BaseTree, ABC):
             if not dense:
                 X_dim_sorted = self._to_array(X_dim_sorted)
 
-            split_indices = 1 + np.where(abs(np.diff(X_dim_sorted)) > self.split_precision)[0]  # we can only split between *different* data points
+            split_indices = 1 + np.where(np.abs(np.diff(X_dim_sorted)) > self.split_precision)[0]  # we can only split between *different* data points
             if len(split_indices) == 0:
                 # no split possible along this dimension
                 continue
@@ -164,8 +164,10 @@ class BasePerpendicularTree(BaseTree, ABC):
             self.log_p_data_no_split_ = log_p_data_no_split
             self.best_log_p_data_split_ = best_log_p_data_split
 
-            self.child1_ = self.child_type(self.partition_prior, prior_child1, self.delta, self.prune, self.level+1)
-            self.child2_ = self.child_type(self.partition_prior, prior_child2, self.delta, self.prune, self.level+1)
+            self.child1_ = self.child_type(self.partition_prior, prior_child1, self.delta,
+                                           self.prune, self.split_precision, self.level+1)
+            self.child2_ = self.child_type(self.partition_prior, prior_child2, self.delta,
+                                           self.prune, self.split_precision, self.level+1)
             self.child1_._erase_split_info_base()
             self.child2_._erase_split_info_base()
             self.child1_._erase_split_info()

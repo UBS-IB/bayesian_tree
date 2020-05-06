@@ -14,15 +14,15 @@ class BaseTree(ABC, BaseEstimator):
     inherit from two superclasses which in turn inherit from this class.
     """
 
-    def __init__(self, partition_prior, prior, delta, prune, child_type, is_regression, level, split_precision):
+    def __init__(self, partition_prior, prior, delta, prune, child_type, is_regression, split_precision, level):
         self.partition_prior = partition_prior
         self.prior = prior
         self.delta = delta
         self.prune = prune
         self.child_type = child_type
         self.is_regression = is_regression
-        self.level = level
         self.split_precision = split_precision
+        self.level = level
 
     def fit(self, X, y, verbose=False, feature_names=None):
         """

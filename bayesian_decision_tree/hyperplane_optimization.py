@@ -50,7 +50,7 @@ class HyperplaneOptimizationFunction:
         # compute distance of all points to the hyperplane: https://mathinsight.org/distance_point_plane
         projections = self.X @ hyperplane_normal  # up to an additive constant which doesn't matter to distance ordering
         sort_indices = np.argsort(projections)
-        split_indices = 1 + np.where(abs(np.diff(projections)) > self.split_precision)[0]  # we can only split between *different* data points
+        split_indices = 1 + np.where(np.abs(np.diff(projections)) > self.split_precision)[0]  # we can only split between *different* data points
         if len(split_indices) == 0:
             # no split possible along this dimension
             return -self.log_p_data_no_split

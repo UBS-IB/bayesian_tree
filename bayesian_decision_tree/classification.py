@@ -19,8 +19,8 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
     medium-level fitting and prediction tasks and outsources the low-level work to subclasses.
     """
 
-    def __init__(self, partition_prior, prior, delta, prune, child_type, level=0):
-        BaseTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, level)
+    def __init__(self, partition_prior, prior, delta, prune, child_type, split_precision, level=0):
+        BaseTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, split_precision, level)
 
     def predict_proba(self, X):
         """Predict class probabilities of the input samples X.
@@ -149,11 +149,11 @@ class PerpendicularClassificationTree(BasePerpendicularTree, BaseClassificationT
         probabilities (`predict_proba(X)`). It can safely be set to 'True' in the regression case
         because it will only merge children if their predictions are identical.
 
-    level : DO NOT SET, ONLY USED BY SUBCLASSES
-
     split_precision : float, default=0.0
         Determines the minimum distance between two contiguous points to consider a split. If the distance is below
         this threshold, the points are considered to overlap along this direction.
+
+    level : DO NOT SET, ONLY USED BY SUBCLASSES
 
     See also
     --------
@@ -173,10 +173,10 @@ class PerpendicularClassificationTree(BasePerpendicularTree, BaseClassificationT
     See `demo_classification_perpendicular.py`.
     """
 
-    def __init__(self, partition_prior=0.99, prior=None, delta=0, prune=False, level=0, split_precision=0.0):
+    def __init__(self, partition_prior=0.99, prior=None, delta=0, prune=False, split_precision=0.0, level=0):
         child_type = PerpendicularClassificationTree
-        BasePerpendicularTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, level, split_precision)
-        BaseClassificationTree.__init__(self, partition_prior, prior, delta, prune, child_type, level)
+        BasePerpendicularTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, split_precision, level)
+        BaseClassificationTree.__init__(self, partition_prior, prior, delta, prune, child_type, split_precision, level)
 
 
 class HyperplaneClassificationTree(BaseHyperplaneTree, BaseClassificationTree):
@@ -229,11 +229,11 @@ class HyperplaneClassificationTree(BaseHyperplaneTree, BaseClassificationTree):
         - RandomTwoPointOptimizer: Experimental, mediocre performance
         - GradientDescentOptimizer: Experimental, mediocre performance
 
-    level : DO NOT SET, ONLY USED BY SUBCLASSES
-
     split_precision : float, default=0.0
         Determines the minimum distance between two contiguous points to consider a split. If the distance is below
         this threshold, the points are considered to overlap along this direction.
+
+    level : DO NOT SET, ONLY USED BY SUBCLASSES
 
     See also
     --------
@@ -253,7 +253,7 @@ class HyperplaneClassificationTree(BaseHyperplaneTree, BaseClassificationTree):
     See `demo_classification_perpendicular.py`.
     """
 
-    def __init__(self, partition_prior=0.99, prior=None, delta=None, prune=False, optimizer=None, level=0, split_precision=0.0):
+    def __init__(self, partition_prior=0.99, prior=None, delta=None, prune=False, optimizer=None, split_precision=0.0, level=0):
         child_type = HyperplaneClassificationTree
-        BaseHyperplaneTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, optimizer, level, split_precision)
-        BaseClassificationTree.__init__(self, partition_prior, prior, delta, prune, child_type, level)
+        BaseHyperplaneTree.__init__(self, partition_prior, prior, delta, prune, child_type, False, optimizer, split_precision, level)
+        BaseClassificationTree.__init__(self, partition_prior, prior, delta, prune, child_type, split_precision, level)
