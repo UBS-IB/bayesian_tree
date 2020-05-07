@@ -122,7 +122,7 @@ class BasePerpendicularTree(BaseTree, ABC):
             y_sorted = y[sort_indices]
 
             # compute data likelihoods of all possible splits along this dimension and find split with highest data likelihood
-            log_p_data_split = self._compute_log_p_data_split(y_sorted, prior, split_indices)
+            log_p_data_split = self._compute_log_p_data_split(y_sorted, prior, n_dim, split_indices)
             i_max = log_p_data_split.argmax()
             if log_p_data_split[i_max] > best_log_p_data_split:
                 # remember new best split

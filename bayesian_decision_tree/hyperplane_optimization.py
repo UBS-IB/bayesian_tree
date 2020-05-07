@@ -58,7 +58,8 @@ class HyperplaneOptimizationFunction:
         y_sorted = self.y[sort_indices]
 
         # compute data likelihoods of all possible splits along this projection and find split with highest data likelihood
-        log_p_data_split = self.compute_log_p_data_split(y_sorted, self.prior, split_indices)
+        n_dim = self.X.shape[1]
+        log_p_data_split = self.compute_log_p_data_split(y_sorted, self.prior, n_dim, split_indices)
         i_max = log_p_data_split.argmax()
         if log_p_data_split[i_max] >= self.best_log_p_data_split:
             best_split_index = split_indices[i_max]
@@ -248,6 +249,33 @@ class QuasiRandomHyperplaneOptimizer(HyperplaneOptimizer):
         for i in range(self.n):
             uniform = next(r2gen)
             optimization_function.compute(uniform)
+
+
+class OptunaOptimizer(HyperplaneOptimizer):
+    def __init__(self, n_trials, seed):
+        super().__init__(search_space_is_unit_hypercube=True)
+
+        self.n_trials = n_trials
+        self.seed = seed
+
+    def solve(self, optimization_function):
+        from optuna import create_study
+        from optuna.logging import set_verbosity
+        from optuna.samplers import TPESampler
+
+        study = create_study(direction='minimize', sampler=TPESampler(self.seed))
+        n_dim = optimization_function.X.shape[1]
+        n_dim_surface = n_dim-1
+
+        def objective(trial):
+            uniform = np.zeros(n_dim_surface)
+            for i in range(n_dim_surface):
+                uniform[i] = trial.suggest_uniform(f'uniform[{i}]', 0, 1)
+
+            return optimization_function.compute(uniform)
+
+        set_verbosity(0)
+        study.optimize(objective, n_trials=self.n_trials)
 
 
 class SimulatedAnnealingOptimizer(HyperplaneOptimizer):

@@ -36,7 +36,7 @@ class BaseRegressionTree(BaseTree, ABC, RegressorMixin):
 
         return log_p_prior + log_p_data
 
-    def _compute_log_p_data_split(self, y, prior, split_indices):
+    def _compute_log_p_data_split(self, y, prior, n_dim, split_indices):
         n = len(y)
         n1 = np.arange(1, n)
         n2 = n - n1
@@ -60,7 +60,6 @@ class BaseRegressionTree(BaseTree, ABC, RegressorMixin):
         mu2, kappa2, alpha2, beta2 = self._compute_posterior_internal(prior, n2, y_sum2, y_squared_sum2)
 
         n_splits = len(split_indices)
-        n_dim = len(prior)
         log_p_prior = np.log(self.partition_prior**(1+self.level) / (n_splits * n_dim))
 
         log_p_data1 = self._compute_log_p_data(prior, alpha1, beta1, kappa1, n1)

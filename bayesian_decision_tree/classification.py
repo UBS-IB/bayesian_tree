@@ -65,7 +65,7 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
 
         return log_p_prior + log_p_data
 
-    def _compute_log_p_data_split(self, y, prior, split_indices):
+    def _compute_log_p_data_split(self, y, prior, n_dim, split_indices):
         n_classes = len(prior)
         k1 = np.empty(n_classes, dtype=object)
         k2 = np.empty(n_classes, dtype=object)
@@ -76,7 +76,6 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
             k2[i] = total - k1[i]
 
         n_splits = len(split_indices)
-        n_dim = len(prior)
         log_p_prior = np.log(self.partition_prior**(1+self.level) / (n_splits * n_dim))
 
         betaln_prior = multivariate_betaln(prior)
