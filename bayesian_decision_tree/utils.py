@@ -1,4 +1,3 @@
-import struct
 from typing import Generator
 
 import numpy as np
@@ -96,30 +95,43 @@ def hypercube_to_hypersphere_surface(
         # odd
         if half_hypersphere:
             surface_points[0] = 1
+            next_dim = 1
         else:
-            # in theory x[0] should be the random sign (+/- 1) which would require another
-            # random number, but we don't have that available, so generate pseudo-random
-            # bits from two sources: the data itself (even/odd bit count) and a bit from
-            # a deterministic quasi-random sequence
-            pseudo_random_bits_data = 1 * np.array([np.sum(list(struct.pack('!d', value))) % 2 == 0 for value in hypercube_points.flatten()])
-            pseudo_random_bits_data = pseudo_random_bits_data.reshape(hypercube_points.shape)
-            pseudo_random_bits_data = np.sum(pseudo_random_bits_data, axis=0) % 2 == 0
+            # see https://mathworld.wolfram.com/SpherePointPicking.html
+            assert n_dim_embedding >= 3
 
-            r2gen = r2_series_generator(n_dim=1)
-            pseudo_random_bits_gen = np.array([next(r2gen)[0] > 0.5 for i in range(hypercube_points.shape[1])])
+            phi = np.arccos(2 * hypercube_points[0] - 1)
+            theta = 2 * np.pi * hypercube_points[1]
+            surface_points[0] = np.sin(phi) * np.cos(theta)
+            surface_points[1] = np.sin(phi) * np.sin(theta)
+            surface_points[2] = np.cos(phi)
+            next_dim = 2
 
-            pseudo_random_bits = pseudo_random_bits_data ^ pseudo_random_bits_gen
-            surface_points[0] = 2*pseudo_random_bits-1
+            # # **old algorithm, flawed**
+            # # in theory x[0] should be the random sign (+/- 1) which would require another
+            # # random number, but we don't have that available, so generate pseudo-random
+            # # bits from two sources: the data itself (even/odd bit count) and a bit from
+            # # a deterministic quasi-random sequence
+            # pseudo_random_bits_data = 1 * np.array([np.sum(list(struct.pack('!d', value))) % 2 == 0 for value in hypercube_points.flatten()])
+            # pseudo_random_bits_data = pseudo_random_bits_data.reshape(hypercube_points.shape)
+            # pseudo_random_bits_data = np.sum(pseudo_random_bits_data, axis=0) % 2 == 0
+            #
+            # r2gen = r2_series_generator(n_dim=1)
+            # pseudo_random_bits_gen = np.array([next(r2gen)[0] > 0.5 for i in range(hypercube_points.shape[1])])
+            #
+            # pseudo_random_bits = pseudo_random_bits_data ^ pseudo_random_bits_gen
+            # surface_points[0] = 2*pseudo_random_bits-1
+            # next_dim = 1
 
-        for i in range(1, (n_dim_embedding+1)//2):
-            u = hypercube_points[2*i-2]
-            h = u ** (1/(2*i-1))
-            surface_points[:2*i-1] *= h
+        for i in range(next_dim, (n_dim_embedding + 1) // 2):
+            u = hypercube_points[2 * i - 2]
+            h = u ** (1 / (2 * i - 1))
+            surface_points[:2 * i - 1] *= h
 
-            sqrt_rho = np.sqrt(np.maximum(0, 1-np.sum(surface_points[:2*i-1]**2, axis=0)))
-            phi = 2*np.pi * hypercube_points[2*i-1]
-            surface_points[2*i-1] = sqrt_rho*np.cos(phi)
-            surface_points[2*i] = sqrt_rho*np.sin(phi)
+            sqrt_rho = np.sqrt(np.maximum(0, 1 - np.sum(surface_points[:2 * i - 1] ** 2, axis=0)))
+            phi = 2 * np.pi * hypercube_points[2 * i - 1]
+            surface_points[2 * i - 1] = sqrt_rho * np.cos(phi)
+            surface_points[2 * i] = sqrt_rho * np.sin(phi)
 
     surface_points = surface_points.squeeze().T
     surface_points = (surface_points.T / np.linalg.norm(surface_points, axis=-1)).T  # correct numerical round-off errors
