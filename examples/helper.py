@@ -257,7 +257,7 @@ def compute_child_bounds_2d_perpendicular(bounds, parent, lower):
 
 def compute_child_bounds_1d_perpendicular(bounds, parent, lower):
     b = bounds
-    b = (b[0], min(b[1], parent.split_value)) if lower else (max(b[0], parent.split_value), b[1])
+    b = (b[0], min(b[1], parent.split_value_)) if lower else (max(b[0], parent.split_value_), b[1])
     return b
 
 
@@ -272,8 +272,8 @@ def draw_node_1d_perpendicular(node, bounds):
         # color = color0 if mean < 0.5 else color1
         plt.plot([x0, x1], [mean, mean], 'r')
     else:
-        draw_node_1d_perpendicular(node.child1, compute_child_bounds_1d_perpendicular(bounds, node, True))
-        draw_node_1d_perpendicular(node.child2, compute_child_bounds_1d_perpendicular(bounds, node, False))
+        draw_node_1d_perpendicular(node.child1_, compute_child_bounds_1d_perpendicular(bounds, node, True))
+        draw_node_1d_perpendicular(node.child2_, compute_child_bounds_1d_perpendicular(bounds, node, False))
 
 
 class Line:
