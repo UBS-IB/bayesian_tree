@@ -47,7 +47,10 @@ To install you can either use _conda_ or _pip_:
 
 #### Conda
 ```
-conda install bayesian_decision_tree
+git clone https://github.com/UBS-IB/bayesian_tree
+cd bayesian_decision_tree
+conda build conda.recipe
+conda install --use-local bayesian_decision_tree
 ```
 
 #### PIP
@@ -60,7 +63,7 @@ pip install -e .
 ## Usage
 
 We include some examples for various uses in the [examples](examples) directory.
-The models are fully compatible with scikit-lern, so you can use them for e.g.
+The models are fully compatible with scikit-learn, so you can use them for e.g.
 cross-validation or performance evaluation using scikit-learn functions.
 
 ## TODO
