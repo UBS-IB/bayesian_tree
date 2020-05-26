@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5] - 2020-05-26
+### Changed
+- Removed references to `SparseDataFrame` (deprecated)
+
+### Fixed
+- Bug in regression code
+
 ## [0.4] - 2020-03-09
 ### Changed
 - Better hyperplane tree plotting
