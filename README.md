@@ -48,7 +48,6 @@ To install you can either use _conda_ or _pip_:
 #### Conda
 ```
 git clone https://github.com/UBS-IB/bayesian_tree
-cd bayesian_decision_tree
 conda build conda.recipe
 conda install --use-local bayesian_decision_tree
 ```
