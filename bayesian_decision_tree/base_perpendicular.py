@@ -20,7 +20,7 @@ class BasePerpendicularTree(BaseTree, ABC):
 
         Parameters
         ----------
-        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix, pandas.DataFrame or pandas.SparseDataFrame,
+        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix or pandas.DataFrame,
             shape = [n_samples, n_features]
 
             The input samples.

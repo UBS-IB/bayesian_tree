@@ -27,7 +27,7 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
 
         Parameters
         ----------
-        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix, pandas.DataFrame or pandas.SparseDataFrame, shape = [n_samples, n_features]
+        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix or pandas.DataFrame, shape = [n_samples, n_features]
             The input samples.
 
         Returns

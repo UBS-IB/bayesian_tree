@@ -1,6 +1,7 @@
+from abc import ABC, abstractmethod
+
 import numpy as np
 import pandas as pd
-from abc import ABC, abstractmethod
 from scipy.sparse import csr_matrix, csc_matrix
 from sklearn.base import BaseEstimator
 
@@ -30,7 +31,7 @@ class BaseTree(ABC, BaseEstimator):
 
         Parameters
         ----------
-        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix, pandas.DataFrame or pandas.SparseDataFrame, shape = [n_samples, n_features]
+        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix or pandas.DataFrame, shape = [n_samples, n_features]
             The training input samples.
 
         y : array-like, shape = [n_samples] or [n_samples, n_outputs]
@@ -81,7 +82,7 @@ class BaseTree(ABC, BaseEstimator):
 
         Parameters
         ----------
-        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix, pandas.DataFrame or pandas.SparseDataFrame, shape = [n_samples, n_features]
+        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix or pandas.DataFrame, shape = [n_samples, n_features]
             The input samples.
 
         Returns
@@ -181,14 +182,7 @@ class BaseTree(ABC, BaseEstimator):
 
     @staticmethod
     def _normalize_data_and_feature_names(X, feature_names=None):
-        if isinstance(X, pd.SparseDataFrame):
-            # we cannot directly access the sparse underlying data,
-            # but we can convert it to a sparse scipy matrix
-            if feature_names is None:
-                feature_names = X.columns
-
-            X = csc_matrix(X.to_coo())
-        elif isinstance(X, pd.DataFrame):
+        if isinstance(X, pd.DataFrame):
             if feature_names is None:
                 feature_names = X.columns
 
