@@ -125,7 +125,9 @@ class BaseTree(ABC, BaseEstimator):
 
     def _predict(self, X, predict_class):
         if self.is_leaf():
-            prediction = self._predict_leaf() if predict_class else self._compute_posterior_mean().reshape(1, -1)
+            prediction = self._get_raw_leaf_data_internal() if predict_class is None \
+                            else self._predict_leaf() if predict_class \
+                            else self._compute_posterior_mean().reshape(1, -1)
             predictions = self._create_merged_predictions_array(X, predict_class, prediction)
             predictions[:] = prediction
             return predictions
@@ -175,6 +177,35 @@ class BaseTree(ABC, BaseEstimator):
         if depth_start != self.get_depth() or n_leaves_start != self.get_n_leaves():
             # we did some pruning somewhere down this sub-tree -> prune again
             self._prune()
+
+    def _get_raw_leaf_data(self, X):
+        """Returns the raw predicted leaf data.
+
+        For both classification and regression models, the following  data is returned for each row of X:
+        [[prior], [posterior]]. This method directly accesses implementation details and should therefore
+        be used with caution.
+
+        Parameters
+        ----------
+        X : array-like, scipy.sparse.csc_matrix, scipy.sparse.csr_matrix or pandas.DataFrame, shape = [n_samples, n_features]
+            The input samples.
+
+        Returns
+        -------
+        y : array of shape = [n_samples * 2 * n_classes] for classification problems
+            or [n_samples * 2 * 4] for regression problems.
+        """
+
+        # input transformation and checks
+        X, _ = self._normalize_data_and_feature_names(X)
+        self._ensure_is_fitted(X)
+
+        prediction = self._predict(X, predict_class=None)
+        if not isinstance(prediction, np.ndarray):
+            # if the tree consists of a single leaf only then we have to cast that single float back to an array
+            prediction = self._create_merged_predictions_array(X, True, prediction)
+
+        return prediction
 
     @abstractmethod
     def _update_feature_importance(self, feature_importance):
@@ -233,10 +264,16 @@ class BaseTree(ABC, BaseEstimator):
 
     @staticmethod
     def _create_merged_predictions_array(X, predict_class, predictions_child):
-        # class predictions: 1D array
-        # probability predictions: 2D array
+        # raw leaf data (predict_class is None): 3D array
+        # class predictions (predict_class == True): 1D array
+        # probability predictions (predict_class == False): 2D array
         len_X = 1 if X is None or np.isscalar(X) else X.shape[0]
-        return np.zeros(len_X) if predict_class else np.zeros((len_X, predictions_child.shape[1]))
+        if predict_class is None:
+            return np.zeros((len_X, predictions_child.shape[-2], predictions_child.shape[-1]))
+        elif predict_class:
+            return np.zeros(len_X)
+        else:
+            np.zeros((len_X, predictions_child.shape[1]))
 
     def get_depth(self):
         """Computes and returns the tree depth.
@@ -320,6 +357,10 @@ class BaseTree(ABC, BaseEstimator):
 
     @abstractmethod
     def _predict_leaf(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def _get_raw_leaf_data_internal(self):
         raise NotImplementedError
 
     @abstractmethod

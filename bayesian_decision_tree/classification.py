@@ -108,6 +108,10 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
         # predict class
         return np.argmax(self.posterior_)
 
+    def _get_raw_leaf_data_internal(self):
+        # prior and posterior raw data
+        return np.array([self.prior, self.posterior_])
+
 
 class PerpendicularClassificationTree(BasePerpendicularTree, BaseClassificationTree):
     """

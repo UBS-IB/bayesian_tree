@@ -119,6 +119,10 @@ class BaseRegressionTree(BaseTree, ABC, RegressorMixin):
         # predict posterior mean
         return self._compute_posterior_mean()
 
+    def _get_raw_leaf_data_internal(self):
+        # prior and posterior raw data
+        return np.array([self.prior, self.posterior_])
+
 
 class PerpendicularRegressionTree(BasePerpendicularTree, BaseRegressionTree):
     """

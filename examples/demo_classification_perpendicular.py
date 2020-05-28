@@ -16,26 +16,26 @@ if __name__ == '__main__':
     # data set: uncomment one of the following sections
 
     # artificial 4-class data somewhat similar to the Ripley data
-    # n_train = 500
-    # n_test = 2000
-    # x0 = [1, 3, 2, 4]
-    # x1 = [1, 1, 3, 3]
-    # sd = 0.7
-    # X_train = np.zeros((n_train, 2))
-    # y_train = np.zeros((n_train, 1))
-    # X_test = np.zeros((n_test, 2))
-    # y_test = np.zeros((n_test, 1))
-    # np.random.seed(666)
-    # for i in range(4):
-    #     X_train[i * n_train//4:(i + 1) * n_train//4, 0] = np.random.normal(x0[i], sd, n_train//4)
-    #     X_train[i * n_train//4:(i + 1) * n_train//4, 1] = np.random.normal(x1[i], sd, n_train//4)
-    #     y_train[i * n_train//4:(i + 1) * n_train//4] = i
-    #
-    #     X_test[i * n_test//4:(i + 1) * n_test//4, 0] = np.random.normal(x0[i], sd, n_test//4)
-    #     X_test[i * n_test//4:(i + 1) * n_test//4, 1] = np.random.normal(x1[i], sd, n_test//4)
-    #     y_test[i * n_test//4:(i + 1) * n_test//4] = i
-    # train = np.hstack((X_train, y_train))
-    # test = np.hstack((X_test, y_test))
+    n_train = 500
+    n_test = 2000
+    x0 = [1, 3, 2, 4]
+    x1 = [1, 1, 3, 3]
+    sd = 0.7
+    X_train = np.zeros((n_train, 2))
+    y_train = np.zeros((n_train, 1))
+    X_test = np.zeros((n_test, 2))
+    y_test = np.zeros((n_test, 1))
+    np.random.seed(666)
+    for i in range(4):
+        X_train[i * n_train//4:(i + 1) * n_train//4, 0] = np.random.normal(x0[i], sd, n_train//4)
+        X_train[i * n_train//4:(i + 1) * n_train//4, 1] = np.random.normal(x1[i], sd, n_train//4)
+        y_train[i * n_train//4:(i + 1) * n_train//4] = i
+
+        X_test[i * n_test//4:(i + 1) * n_test//4, 0] = np.random.normal(x0[i], sd, n_test//4)
+        X_test[i * n_test//4:(i + 1) * n_test//4, 1] = np.random.normal(x1[i], sd, n_test//4)
+        y_test[i * n_test//4:(i + 1) * n_test//4] = i
+    train = np.hstack((X_train, y_train))
+    test = np.hstack((X_test, y_test))
 
     # np.random.seed(5)
     #
@@ -56,9 +56,9 @@ if __name__ == '__main__':
     # test = train
 
     # or, alternatively, load a UCI dataset
-    train, test = helper.load_ripley(proxies)
+    # train, test = helper.load_ripley(proxies)
 
-    n_dim = len(np.unique(train[:, -1]))
+    n_classes = len(np.unique(train[:, -1]))
 
     if train is test:
         # perform a 50:50 train:test split if no test data is given
@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
     # prior
     prior_pseudo_observations = 1
-    prior = prior_pseudo_observations * np.ones(n_dim)
+    prior = prior_pseudo_observations * np.ones(n_classes)
 
     # model
     model = PerpendicularClassificationTree(
@@ -97,9 +97,6 @@ if __name__ == '__main__':
     info_test = 'Test accuracy:  {:.4f} %'.format(100 * accuracy_test)
     print(info_train)
     print(info_test)
-
-    from sklearn.metrics import roc_curve
-    print(roc_curve(y_train, model.predict_proba(X_train)[:, 1]))
 
     # plot if 1D or 2D
     dimensions = X_train.shape[1]

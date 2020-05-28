@@ -59,7 +59,7 @@ if __name__ == '__main__':
     # or, alternatively, load a UCI dataset
     # train, test = helper.load_ripley(proxies)
 
-    n_dim = len(np.unique(train[:, -1]))
+    n_classes = len(np.unique(train[:, -1]))
 
     if train is test:
         # perform a 50:50 train:test split if no test data is given
@@ -73,7 +73,7 @@ if __name__ == '__main__':
 
     # prior
     prior_pseudo_observations = 100
-    prior = prior_pseudo_observations * np.ones(n_dim)
+    prior = prior_pseudo_observations * np.ones(n_classes)
 
     # model
     model = HyperplaneClassificationTree(
