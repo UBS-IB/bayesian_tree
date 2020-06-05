@@ -95,10 +95,11 @@ class BaseTree(ABC, BaseEstimator):
         X, _ = self._normalize_data_and_feature_names(X)
         self._ensure_is_fitted(X)
 
-        prediction = self._predict(X, predict_class=True)
+        indices = np.arange(X.shape[0])
+        prediction = self._predict(X, indices=indices, predict_class=True)
         if not isinstance(prediction, np.ndarray):
             # if the tree consists of a single leaf only then we have to cast that single float back to an array
-            prediction = self._create_merged_predictions_array(X, True, prediction)
+            prediction = self._create_merged_predictions_array(indices, True, prediction)
 
         return prediction
 
@@ -123,12 +124,12 @@ class BaseTree(ABC, BaseEstimator):
 
         return feature_importance
 
-    def _predict(self, X, predict_class):
+    def _predict(self, X, indices, predict_class):
         if self.is_leaf():
             prediction = self._get_raw_leaf_data_internal() if predict_class is None \
                             else self._predict_leaf() if predict_class \
                             else self._compute_posterior_mean().reshape(1, -1)
-            predictions = self._create_merged_predictions_array(X, predict_class, prediction)
+            predictions = self._create_merged_predictions_array(indices, predict_class, prediction)
             predictions[:] = prediction
             return predictions
         else:
@@ -138,21 +139,19 @@ class BaseTree(ABC, BaseEstimator):
                 X = csc_matrix(X)
 
             # query both children, let them predict their side, and then re-assemble
-            indices1, indices2 = self._compute_child1_and_child2_indices(X, dense)
+            indices1, indices2 = self._compute_child1_and_child2_indices(X, indices, dense)
 
             predictions_merged = None
 
             if len(indices1) > 0:
-                X1 = X[indices1]
-                predictions1 = self.child1_._predict(X1, predict_class)
-                predictions_merged = self._create_merged_predictions_array(X, predict_class, predictions1)
+                predictions1 = self.child1_._predict(X, indices[indices1], predict_class)
+                predictions_merged = self._create_merged_predictions_array(indices, predict_class, predictions1)
                 predictions_merged[indices1] = predictions1
 
             if len(indices2) > 0:
-                X2 = X[indices2]
-                predictions2 = self.child2_._predict(X2, predict_class)
+                predictions2 = self.child2_._predict(X, indices[indices2], predict_class)
                 if predictions_merged is None:
-                    predictions_merged = self._create_merged_predictions_array(X, predict_class, predictions2)
+                    predictions_merged = self._create_merged_predictions_array(indices, predict_class, predictions2)
 
                 predictions_merged[indices2] = predictions2
 
@@ -200,10 +199,11 @@ class BaseTree(ABC, BaseEstimator):
         X, _ = self._normalize_data_and_feature_names(X)
         self._ensure_is_fitted(X)
 
-        prediction = self._predict(X, predict_class=None)
+        indices = np.arange(X.shape[0])
+        prediction = self._predict(X, indices=indices, predict_class=None)
         if not isinstance(prediction, np.ndarray):
             # if the tree consists of a single leaf only then we have to cast that single float back to an array
-            prediction = self._create_merged_predictions_array(X, True, prediction)
+            prediction = self._create_merged_predictions_array(indices, True, prediction)
 
         return prediction
 
@@ -263,17 +263,17 @@ class BaseTree(ABC, BaseEstimator):
         return hasattr(self, 'posterior_')
 
     @staticmethod
-    def _create_merged_predictions_array(X, predict_class, predictions_child):
+    def _create_merged_predictions_array(indices, predict_class, predictions_child):
         # raw leaf data (predict_class is None): 3D array
         # class predictions (predict_class == True): 1D array
         # probability predictions (predict_class == False): 2D array
-        len_X = 1 if X is None or np.isscalar(X) else X.shape[0]
+        shape0 = 1 if indices is None or np.isscalar(indices) else len(indices)
         if predict_class is None:
-            return np.zeros((len_X, predictions_child.shape[-2], predictions_child.shape[-1]))
+            return np.zeros((shape0, predictions_child.shape[-2], predictions_child.shape[-1]))
         elif predict_class:
-            return np.zeros(len_X)
+            return np.zeros(shape0)
         else:
-            np.zeros((len_X, predictions_child.shape[1]))
+            return np.zeros((shape0, predictions_child.shape[1]))
 
     def get_depth(self):
         """Computes and returns the tree depth.
@@ -371,5 +371,5 @@ class BaseTree(ABC, BaseEstimator):
         return self.__str__()
 
     @abstractmethod
-    def _compute_child1_and_child2_indices(self, X, dense):
+    def _compute_child1_and_child2_indices(self, X, indices, dense):
         raise NotImplementedError

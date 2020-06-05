@@ -38,18 +38,18 @@ class BasePerpendicularTree(BaseTree, ABC):
         self._ensure_is_fitted(X)
 
         paths = [[] for i in range(X.shape[0])]
-        self._update_prediction_paths(X, paths)
+        self._update_prediction_paths(X, np.arange(X.shape[0]), paths)
 
         return paths
 
-    def _update_prediction_paths(self, X, paths):
+    def _update_prediction_paths(self, X, indices, paths):
         if not self.is_leaf():
             dense = isinstance(X, np.ndarray)
             if not dense and isinstance(X, csr_matrix):
                 # column accesses coming up, so convert to CSC sparse matrix format
                 X = csc_matrix(X)
 
-            indices1, indices2 = self._compute_child1_and_child2_indices(X, dense)
+            indices1, indices2 = self._compute_child1_and_child2_indices(X, indices, dense)
 
             if len(indices1) > 0:
                 step = (self.split_dimension_, self.split_feature_name_, self.split_value_, False)
@@ -62,14 +62,12 @@ class BasePerpendicularTree(BaseTree, ABC):
                     paths[i].append(step)
 
             if len(indices1) > 0 and not self.child1_.is_leaf():
-                X1 = X[indices1]
                 paths1 = [paths[i] for i in indices1]
-                self.child1_._update_prediction_paths(X1, paths1)
+                self.child1_._update_prediction_paths(X, indices1, paths1)
 
             if len(indices2) > 0 and not self.child2_.is_leaf():
-                X2 = X[indices2]
                 paths2 = [paths[i] for i in indices2]
-                self.child2_._update_prediction_paths(X2, paths2)
+                self.child2_._update_prediction_paths(X, indices2, paths2)
 
     @staticmethod
     def _create_merged_paths_array(n_rows):
@@ -197,8 +195,8 @@ class BasePerpendicularTree(BaseTree, ABC):
         self.n_data_ = n_data
         self.posterior_ = self._compute_posterior(y[sort_indices_by_dim[0]], prior)  # any dim works as the order doesn't matter
 
-    def _compute_child1_and_child2_indices(self, X, dense):
-        X_split = X[:, self.split_dimension_]
+    def _compute_child1_and_child2_indices(self, X, indices, dense):
+        X_split = X[indices, self.split_dimension_]
         if not dense:
             X_split = self._to_array(X_split)
 

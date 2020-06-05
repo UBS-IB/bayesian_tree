@@ -120,8 +120,8 @@ class BaseHyperplaneTree(BaseTree, ABC):
         self.n_data_ = n_data
         self.posterior_ = self._compute_posterior(y, prior)
 
-    def _compute_child1_and_child2_indices(self, X, dense):
-        projections = X @ self.best_hyperplane_normal_ - np.dot(self.best_hyperplane_normal_, self.best_hyperplane_origin_)
+    def _compute_child1_and_child2_indices(self, X, indices, dense):
+        projections = X[indices] @ self.best_hyperplane_normal_ - np.dot(self.best_hyperplane_normal_, self.best_hyperplane_origin_)
         indices1 = np.where(projections < 0)[0]
         indices2 = np.where(projections >= 0)[0]
 
