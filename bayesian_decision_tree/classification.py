@@ -40,7 +40,10 @@ class BaseClassificationTree(BaseTree, ABC, ClassifierMixin):
         X, _ = self._normalize_data_and_feature_names(X)
         self._ensure_is_fitted(X)
 
-        return self._predict(X, indices=np.arange(X.shape[0]), predict_class=False)
+        y_proba = [None] * X.shape[0]
+        self._predict(X, np.arange(X.shape[0]), False, y_proba)
+
+        return np.array(y_proba)
 
     def _check_target(self, y):
         if y.ndim != 1:

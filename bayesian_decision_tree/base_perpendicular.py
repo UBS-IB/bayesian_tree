@@ -134,19 +134,6 @@ class BasePerpendicularTree(BaseTree, ABC):
             indices1 = sort_indices_by_dim[best_split_dimension, :best_split_index]
             indices2 = sort_indices_by_dim[best_split_dimension, best_split_index:]
 
-            # compute 'active' data indices for the children
-            active1 = np.zeros(X.shape[0], dtype=bool)
-            active2 = np.zeros(X.shape[0], dtype=bool)
-            active1[indices1] = True
-            active2[indices2] = True
-
-            # update sort indices for children based on the overall sort indices and the active data indices
-            sort_indices_by_dim_1 = np.array([si[active1[si]] for si in sort_indices_by_dim])
-            sort_indices_by_dim_2 = np.array([si[active2[si]] for si in sort_indices_by_dim])
-
-            n_data1 = sort_indices_by_dim_1.shape[1]
-            n_data2 = sort_indices_by_dim_2.shape[1]
-
             # compute posteriors of children and priors for further splitting
             prior = self._get_prior(n_data, n_dim)
             prior_child1 = tuple(self._compute_posterior(y[indices1], prior, self.delta)) if self.delta != 0 else prior
@@ -173,14 +160,20 @@ class BasePerpendicularTree(BaseTree, ABC):
 
             # fit children if there is more than one data point (i.e., there is
             # something to split) and if the targets differ (no point otherwise)
+            active1 = np.isin(sort_indices_by_dim, indices1)
+            sort_indices_by_dim_1 = sort_indices_by_dim[active1].reshape(n_dim, -1)
+            n_data1 = sort_indices_by_dim_1.shape[1]
             y1 = y[indices1]
-            y2 = y[indices2]
             if n_data1 > 1 and len(np.unique(y1)) > 1:
                 self.child1_._fit(X, y, verbose, feature_names, 'LHS', sort_indices_by_dim_1)
             else:
                 self.child1_.posterior_ = self._compute_posterior(y1, prior)
                 self.child1_.n_data_ = n_data1
 
+            active2 = np.invert(active1)
+            sort_indices_by_dim_2 = sort_indices_by_dim[active2].reshape(n_dim, -1)
+            n_data2 = sort_indices_by_dim_2.shape[1]
+            y2 = y[indices2]
             if n_data2 > 1 and len(np.unique(y2)) > 1:
                 self.child2_._fit(X, y, verbose, feature_names, 'RHS', sort_indices_by_dim_2)
             else:
