@@ -160,8 +160,7 @@ class BasePerpendicularTree(BaseTree, ABC):
 
             # fit children if there is more than one data point (i.e., there is
             # something to split) and if the targets differ (no point otherwise)
-            active1 = np.isin(sort_indices_by_dim, indices1)
-            sort_indices_by_dim_1 = sort_indices_by_dim[active1].reshape(n_dim, -1)
+            sort_indices_by_dim_1 = sort_indices_by_dim[np.isin(sort_indices_by_dim, indices1)].reshape(n_dim, -1)
             n_data1 = sort_indices_by_dim_1.shape[1]
             y1 = y[indices1]
             if n_data1 > 1 and len(np.unique(y1)) > 1:
@@ -170,8 +169,7 @@ class BasePerpendicularTree(BaseTree, ABC):
                 self.child1_.posterior_ = self._compute_posterior(y1, prior)
                 self.child1_.n_data_ = n_data1
 
-            active2 = np.invert(active1)
-            sort_indices_by_dim_2 = sort_indices_by_dim[active2].reshape(n_dim, -1)
+            sort_indices_by_dim_2 = sort_indices_by_dim[np.isin(sort_indices_by_dim, indices2)].reshape(n_dim, -1)
             n_data2 = sort_indices_by_dim_2.shape[1]
             y2 = y[indices2]
             if n_data2 > 1 and len(np.unique(y2)) > 1:
