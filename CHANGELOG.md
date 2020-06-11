@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7] - 2020-06-211
+### Changed
+- Improve prediction performance
+- Improve training performance and memory use
+
 ## [0.6] - 2020-05-28
 ### Added
 - New method `_get_raw_leaf_data()` to access leaf internals
