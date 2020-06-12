@@ -100,12 +100,13 @@ class BasePerpendicularTree(BaseTree, ABC):
 
         # compute data likelihood of not splitting and remember it as the best option so far
         prior = self._get_prior(n_data, n_dim)
-        log_p_data_no_split = self._compute_log_p_data_no_split(y[sort_indices_by_dim[0]], prior)  # any dim works as the order doesn't matter
+        y_any = y[sort_indices_by_dim[0]]  # any dim works as the order doesn't matter
+        log_p_data_no_split = self._compute_log_p_data_no_split(y_any, prior)
         best_log_p_data_split = log_p_data_no_split
 
         # compute data likelihoods of all possible splits along all data dimensions
-        best_split_index = -1       # index of best split
-        best_split_dimension = -1   # dimension of best split
+        best_split_index = -1
+        best_split_dimension = -1
         for dim in range(n_dim):
             sort_indices = sort_indices_by_dim[dim]
             X_dim_sorted = X[sort_indices, dim]
@@ -161,7 +162,10 @@ class BasePerpendicularTree(BaseTree, ABC):
             # fit children if there is more than one data point (i.e., there is
             # something to split) and if the targets differ (no point otherwise)
             sort_indices_by_dim_1 = sort_indices_by_dim[np.isin(sort_indices_by_dim, indices1)].reshape(n_dim, -1)
+            sort_indices_by_dim_2 = sort_indices_by_dim[np.isin(sort_indices_by_dim, indices2)].reshape(n_dim, -1)
+            del sort_indices_by_dim  # help GC maybe?
             n_data1 = sort_indices_by_dim_1.shape[1]
+            n_data2 = sort_indices_by_dim_2.shape[1]
             y1 = y[indices1]
             if n_data1 > 1 and len(np.unique(y1)) > 1:
                 self.child1_._fit(X, y, verbose, feature_names, 'LHS', sort_indices_by_dim_1)
@@ -169,8 +173,6 @@ class BasePerpendicularTree(BaseTree, ABC):
                 self.child1_.posterior_ = self._compute_posterior(y1, prior)
                 self.child1_.n_data_ = n_data1
 
-            sort_indices_by_dim_2 = sort_indices_by_dim[np.isin(sort_indices_by_dim, indices2)].reshape(n_dim, -1)
-            n_data2 = sort_indices_by_dim_2.shape[1]
             y2 = y[indices2]
             if n_data2 > 1 and len(np.unique(y2)) > 1:
                 self.child2_._fit(X, y, verbose, feature_names, 'RHS', sort_indices_by_dim_2)
@@ -184,7 +186,7 @@ class BasePerpendicularTree(BaseTree, ABC):
         # compute posterior
         self.n_dim_ = n_dim
         self.n_data_ = n_data
-        self.posterior_ = self._compute_posterior(y[sort_indices_by_dim[0]], prior)  # any dim works as the order doesn't matter
+        self.posterior_ = self._compute_posterior(y_any, prior)  # any dim works as the order doesn't matter
 
     def _compute_child1_and_child2_indices(self, X, indices, dense):
         X_split = X[indices, self.split_dimension_]
